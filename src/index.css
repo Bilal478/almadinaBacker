@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", "Inter", system-ui, -apple-system, Roboto, Arial, sans-serif;
+
+  /* Desktop POS palette: light, neutral, professional */
+  --color-app-bg: #eef0f3;
+  --color-panel: #ffffff;
+  --color-panel-alt: #f6f7f9;
+  --color-border: #d7dbe0;
+  --color-border-strong: #b9c0c9;
+
+  --color-ink: #1a1d23;
+  --color-ink-soft: #4b5361;
+  --color-ink-faint: #7a8291;
+
+  --color-brand-50: #fff5e8;
+  --color-brand-100: #ffe6c2;
+  --color-brand-500: #c2760a;
+  --color-brand-600: #a6620a;
+  --color-brand-700: #854e08;
+
+  --color-navy-900: #1e2733;
+  --color-navy-800: #263140;
+  --color-navy-700: #2f3b4c;
+
+  --color-success: #1a7f37;
+  --color-success-bg: #e6f6ea;
+  --color-danger: #c22828;
+  --color-danger-bg: #fdeaea;
+  --color-warning: #b5750a;
+  --color-warning-bg: #fef3e0;
+  --color-info: #0b5fb0;
+  --color-info-bg: #e8f2fd;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-app-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c3c9d1;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a8b0bb;
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/* Receipt printing — see ReceiptModal/ReceiptContent. Hidden on screen (the on-screen preview
+   lives inside the modal instead); shown full-page, alone, only when actually printing, sized
+   for a standard 80mm thermal receipt roll. */
+.receipt-print-area {
+  display: none;
+}
+
+@media print {
+  body > *:not(.receipt-print-area) {
+    display: none !important;
+  }
+  /* @page's own margin isn't reliably honored by thermal-printer drivers (some ignore it,
+     some apply their own hardware margin on top of it) — so margin is 0 here and the safety
+     margin is instead a real, physical gap built into the content's own width below. That
+     way we're safe whether or not the driver respects @page margin. */
+  .receipt-print-area {
+    display: block !important;
+    position: static;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  /* ReceiptContent's root carries a screen-only max-w-xs (a fixed 320px) for the modal
+     preview — replace it with a width narrower than the nominal 80mm page (not 100% of it),
+     centered, so there's a real physical buffer on both edges. A driver that clips anything
+     outside its own printable area (common — many "80mm" printers only print ~72-76mm of
+     it) still has room before it reaches actual receipt content. */
+  .receipt-print-area > * {
+    max-width: 68mm !important;
+    width: 68mm !important;
+    margin: 0 auto !important;
+    font-size: 12px !important;
+    /* Thermal printers burn dots per glyph stroke — a regular-weight font doesn't get
+       enough heat coverage and comes out faint/grey instead of crisp black. Bold weight
+       plus a font with thicker, more uniform strokes than the on-screen monospace fixes it. */
+    font-family: "Courier New", Consolas, monospace !important;
+    font-weight: 700 !important;
+  }
+  .receipt-print-area * {
+    color: #000 !important;
+    font-weight: 700 !important;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}

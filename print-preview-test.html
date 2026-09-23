@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Receipt Print Preview Test</title>
+<style>
+  /* ---- on-screen instructions only — never printed, same hiding trick the real app uses ---- */
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #eef0f3;
+    color: #1a1d23;
+  }
+  .instructions {
+    max-width: 640px;
+    margin: 24px auto;
+    padding: 16px 20px;
+    background: #fff;
+    border: 1px solid #d7dbe0;
+    border-radius: 6px;
+    line-height: 1.5;
+  }
+  .instructions h1 {
+    font-size: 16px;
+    margin: 0 0 8px;
+  }
+  .instructions code {
+    background: #f6f7f9;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }
+  .instructions kbd {
+    background: #1e2733;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  /* ---- exact copy of the receipt-print rules from src/index.css ---- */
+  .receipt-print-area {
+    display: none;
+  }
+  @media print {
+    body > *:not(.receipt-print-area) {
+      display: none !important;
+    }
+    .receipt-print-area {
+      display: block !important;
+      position: static;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .receipt-print-area > * {
+      max-width: 68mm !important;
+      width: 68mm !important;
+      margin: 0 auto !important;
+      font-size: 11px !important;
+      font-family: "Courier New", Consolas, monospace !important;
+      font-weight: 700 !important;
+    }
+    .receipt-print-area * {
+      color: #000 !important;
+      font-weight: 700 !important;
+    }
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+  }
+
+  /* Everything below this line only matters for what gets printed — kept close to the
+     real ReceiptContent.tsx markup/classes so this behaves the same on paper. */
+  .receipt {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  .receipt .center {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .receipt .store-name {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .receipt .faint {
+    font-size: 10.5px;
+    color: #7a8291;
+  }
+  .receipt .section {
+    border-top: 1px dashed #b9c0c9;
+    padding: 6px 0;
+  }
+  .receipt .row {
+    display: flex;
+    justify-content: space-between;
+  }
+  .receipt .row.total {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .receipt .item {
+    margin-bottom: 4px;
+  }
+  .receipt .item .row {
+    font-weight: 600;
+  }
+  .receipt .item .sub {
+    font-size: 11px;
+    color: #7a8291;
+    font-weight: 400;
+  }
+  .receipt .footer {
+    padding-top: 8px;
+    text-align: center;
+    font-size: 11px;
+    color: #7a8291;
+  }
+</style>
+</head>
+<body>
+
+  <div class="instructions">
+    <h1>Receipt print-preview test</h1>
+    <p>This page loads the exact same print CSS as the real app (<code>src/index.css</code>'s
+    <code>@media print</code> block, copied verbatim), with a sample receipt below.</p>
+    <p>Press <kbd>Ctrl</kbd> + <kbd>P</kbd> now — the browser's print-preview panel shows layout,
+    sizing and page-fit accurately. It <strong>won't</strong> show real thermal darkness/faintness
+    (that's the printer's hardware, not something a screen can simulate) — for that you still need
+    an actual test print.</p>
+    <p>To test a CSS change: edit the <code>@media print</code> block in this file and in
+    <code>src/index.css</code> together, then reopen this file and press Ctrl+P again.</p>
+    <p>This instructions box (and everything except the receipt below) disappears automatically
+    when you print or preview — same mechanism the real app uses.</p>
+  </div>
+
+  <div class="receipt-print-area">
+    <div class="receipt">
+      <div class="center">
+        <div class="store-name">My Bakery</div>
+        <div class="faint">123 Main Street, Your City</div>
+        <div class="faint">Tel: 0300-0000000</div>
+      </div>
+      <div class="section">
+        <div class="row"><span>Invoice</span><span>INV-202609-00011</span></div>
+        <div class="row"><span>Date</span><span>20 Sep 2026  05:00 AM</span></div>
+        <div class="row"><span>Counter</span><span>Counter 1</span></div>
+        <div class="row"><span>Cashier</span><span>Administrator</span></div>
+      </div>
+      <div class="section">
+        <div class="item">
+          <div class="row"><span>Coconut Oil</span><span>Rs. 360.00</span></div>
+          <div class="row sub"><span>3 pcs x Rs. 120.00</span></div>
+        </div>
+        <div class="item">
+          <div class="row"><span>White Bread Loaf</span><span>Rs. 110.00</span></div>
+          <div class="row sub"><span>1 pcs x Rs. 120.00</span><span>-10.00</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="row"><span>Subtotal</span><span>Rs. 470.00</span></div>
+        <div class="row"><span>Discount</span><span>-Rs. 10.00</span></div>
+        <div class="row total"><span>TOTAL</span><span>Rs. 460.00</span></div>
+      </div>
+      <div class="section">
+        <div class="row"><span>CASH</span><span>Rs. 500.00</span></div>
+        <div class="row"><span>Change</span><span>Rs. 40.00</span></div>
+      </div>
+      <div class="footer">Thank you for your business!</div>
+    </div>
+  </div>
+
+</body>
+</html>
