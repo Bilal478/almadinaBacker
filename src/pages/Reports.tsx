@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
-import { Download, Printer, CheckCircle2 } from 'lucide-react'
+import { Download, Printer, CheckCircle2, Undo2 } from 'lucide-react'
 import { ReportTable } from '@/components/common/ReportTable'
 import { ReportFilterBar, DEFAULT_REPORT_FILTERS, type ReportFilters } from '@/components/reports/ReportFilterBar'
 import { Button } from '@/components/common/Button'
 import { ReceiptModal } from '@/components/pos/ReceiptModal'
+import { ReturnModal } from '@/components/pos/ReturnModal'
 import { useSalesStore } from '@/store/salesStore'
 import { useProductStore } from '@/store/productStore'
 import { useSupplierStore } from '@/store/supplierStore'
@@ -31,20 +32,33 @@ export function ReportsPage() {
   const [tab, setTab] = useState<Tab>('sales')
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS)
   const [reprintSale, setReprintSale] = useState<Sale | null>(null)
+  const [returnSale, setReturnSale] = useState<Sale | null>(null)
   const hasPermission = useAuthStore((s) => s.hasPermission)
   const pushToast = useUiStore((s) => s.pushToast)
   const canExport = hasPermission('export_reports')
+  const canReturn = hasPermission('void_sale')
 
   const rawSales = useSalesStore((s) => s.sales)
+  const fetchSales = useSalesStore((s) => s.fetchAll)
   const allSales = useMemo(() => rawSales.filter((sale) => sale.status === 'completed'), [rawSales])
   const products = useProductStore((s) => s.products)
+  const fetchProducts = useProductStore((s) => s.fetchAll)
   const getStock = useProductStore((s) => s.getStock)
   const getCurrentPrice = useProductStore((s) => s.getCurrentPrice)
   const suppliers = useSupplierStore((s) => s.suppliers)
   const purchases = useSupplierStore((s) => s.purchases)
+  const fetchSuppliers = useSupplierStore((s) => s.fetchAll)
   const getOutstanding = useSupplierStore((s) => s.getOutstanding)
   const getSupplier = useSupplierStore((s) => s.getSupplier)
   const expenses = useExpenseStore((s) => s.expenses)
+  const fetchExpenses = useExpenseStore((s) => s.fetchAll)
+
+  useEffect(() => {
+    fetchSales()
+    fetchProducts()
+    fetchSuppliers()
+    fetchExpenses()
+  }, [fetchSales, fetchProducts, fetchSuppliers, fetchExpenses])
 
   function patchFilters(patch: Partial<ReportFilters>) {
     setFilters((f) => ({ ...f, ...patch }))
@@ -152,6 +166,7 @@ export function ReportsPage() {
               '',
               '',
               '',
+              '',
             ]}
             columns={[
               { key: 'invoiceNo', header: 'Invoice No.', render: (r) => r.invoiceNo },
@@ -186,6 +201,24 @@ export function ReportsPage() {
                     <Printer size={12} /> {r.printedAt ? 'Reprint' : 'Print'}
                   </button>
                 ),
+              },
+              {
+                key: 'return',
+                header: 'Return',
+                align: 'center',
+                render: (r) => {
+                  const fullyReturned = r.items.every((i) => i.qty - i.returnedQty <= 0)
+                  if (!canReturn) return <span className="text-[11px] text-ink-faint">—</span>
+                  if (fullyReturned) return <span className="text-[11px] text-ink-faint">Fully returned</span>
+                  return (
+                    <button
+                      onClick={() => setReturnSale(r)}
+                      className="flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[11px] font-medium text-ink-soft hover:bg-panel-alt"
+                    >
+                      <Undo2 size={12} /> Return
+                    </button>
+                  )
+                },
               },
             ]}
           />
@@ -270,6 +303,7 @@ export function ReportsPage() {
       </div>
 
       <ReceiptModal sale={reprintSale} onClose={() => setReprintSale(null)} />
+      <ReturnModal sale={returnSale} onClose={() => setReturnSale(null)} />
     </div>
   )
 }

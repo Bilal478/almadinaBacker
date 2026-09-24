@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Eye, Pencil, Plus, PowerOff, Power } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
@@ -8,6 +8,7 @@ import { Button } from '@/components/common/Button'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { ProductFormModal } from '@/components/products/ProductFormModal'
 import { ProductDetailModal } from '@/components/products/ProductDetailModal'
+import { AdjustmentModal } from '@/components/products/AdjustmentModal'
 import { useProductStore } from '@/store/productStore'
 import { useAuthStore } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
@@ -16,6 +17,7 @@ import type { Product } from '@/types'
 
 export function ProductsPage() {
   const products = useProductStore((s) => s.products)
+  const fetchProducts = useProductStore((s) => s.fetchAll)
   const getCurrentPrice = useProductStore((s) => s.getCurrentPrice)
   const getStock = useProductStore((s) => s.getStock)
   const getNearestExpiry = useProductStore((s) => s.getNearestExpiry)
@@ -33,6 +35,14 @@ export function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null)
   const [toggleTarget, setToggleTarget] = useState<Product | null>(null)
+  const [adjustProductId, setAdjustProductId] = useState<string | null>(null)
+
+  // This is a SPA — without this, navigating here shows whatever was loaded at login, not
+  // what's actually in the database now (e.g. a sale/adjustment made from another screen or
+  // another counter). Every list page refetches its own data on mount for that reason.
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((p) => p.category)))], [products])
 
@@ -71,8 +81,7 @@ export function ProductsPage() {
     ...(canViewCost
       ? [{ key: 'cost', header: 'Purchase Cost', align: 'right' as const, render: (p: Product) => formatCurrency(getCurrentPrice(p.id)?.purchaseCost ?? 0) }]
       : []),
-    { key: 'customerPrice', header: 'Customer Price', align: 'right', render: (p) => formatCurrency(getCurrentPrice(p.id)?.customerPrice ?? 0) },
-    { key: 'retailerPrice', header: 'Retailer Price', align: 'right', render: (p) => formatCurrency(getCurrentPrice(p.id)?.retailerPrice ?? 0) },
+    { key: 'price', header: 'Price', align: 'right', render: (p) => formatCurrency(getCurrentPrice(p.id)?.customerPrice ?? 0) },
     {
       key: 'expiry',
       header: 'Expiry',
@@ -160,8 +169,18 @@ export function ProductsPage() {
         <DataTable columns={columns} rows={filtered} keyField={(p) => p.id} />
       </div>
 
-      <ProductFormModal open={formOpen} product={editingProduct} onClose={() => setFormOpen(false)} />
+      <ProductFormModal
+        open={formOpen}
+        product={editingProduct}
+        onClose={() => setFormOpen(false)}
+        onEditExisting={(p) => {
+          setEditingProduct(p)
+          setFormOpen(true)
+        }}
+        onAdjustExisting={(p) => setAdjustProductId(p.id)}
+      />
       <ProductDetailModal product={viewingProduct} onClose={() => setViewingProduct(null)} />
+      <AdjustmentModal open={!!adjustProductId} initialProductId={adjustProductId ?? undefined} onClose={() => setAdjustProductId(null)} />
       <ConfirmDialog
         open={!!toggleTarget}
         title={toggleTarget?.status === 'active' ? 'Deactivate Product' : 'Activate Product'}

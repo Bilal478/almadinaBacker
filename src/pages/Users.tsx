@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Power, PowerOff } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
@@ -14,8 +14,13 @@ import type { User } from '@/types'
 export function UsersPage() {
   const users = useUserStore((s) => s.users)
   const roles = useUserStore((s) => s.roles)
+  const fetchUsers = useUserStore((s) => s.fetchAll)
   const setUserStatus = useUserStore((s) => s.setUserStatus)
   const pushToast = useUiStore((s) => s.pushToast)
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)

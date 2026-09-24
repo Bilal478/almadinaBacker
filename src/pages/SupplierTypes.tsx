@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Power, PowerOff } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
@@ -14,10 +14,15 @@ import type { SupplierType } from '@/types'
 export function SupplierTypesPage() {
   const supplierTypes = useSupplierStore((s) => s.supplierTypes)
   const suppliers = useSupplierStore((s) => s.suppliers)
+  const fetchSuppliers = useSupplierStore((s) => s.fetchAll)
   const addSupplierType = useSupplierStore((s) => s.addSupplierType)
   const updateSupplierType = useSupplierStore((s) => s.updateSupplierType)
   const setSupplierTypeStatus = useSupplierStore((s) => s.setSupplierTypeStatus)
   const pushToast = useUiStore((s) => s.pushToast)
+
+  useEffect(() => {
+    fetchSuppliers()
+  }, [fetchSuppliers])
 
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)

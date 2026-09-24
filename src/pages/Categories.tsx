@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Power, PowerOff } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
@@ -14,11 +14,16 @@ import type { Category } from '@/types'
 
 export function CategoriesPage() {
   const categories = useCategoryStore((s) => s.categories)
+  const fetchCategories = useCategoryStore((s) => s.fetchAll)
   const addCategory = useCategoryStore((s) => s.addCategory)
   const updateCategory = useCategoryStore((s) => s.updateCategory)
   const setCategoryStatus = useCategoryStore((s) => s.setCategoryStatus)
   const products = useProductStore((s) => s.products)
   const pushToast = useUiStore((s) => s.pushToast)
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
 
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)

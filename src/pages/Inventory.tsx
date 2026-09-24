@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react'
-import { AlertTriangle, PackageX } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, PackageX, SlidersHorizontal } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
 import { FilterBar, FilterField, selectClass } from '@/components/common/FilterBar'
 import { StatusBadge } from '@/components/common/StatusBadge'
+import { Button } from '@/components/common/Button'
+import { AdjustmentModal } from '@/components/products/AdjustmentModal'
 import { useProductStore } from '@/store/productStore'
 import { useInventoryStore } from '@/store/inventoryStore'
+import { useAuthStore } from '@/store/authStore'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 import type { Batch } from '@/types'
 
@@ -13,12 +16,23 @@ type Row = Batch & { productName: string; productCode: string; lowStockLevel: nu
 
 export function InventoryPage() {
   const products = useProductStore((s) => s.products)
+  const fetchProducts = useProductStore((s) => s.fetchAll)
   const batches = useInventoryStore((s) => s.batches)
+  const fetchBatches = useInventoryStore((s) => s.fetchAll)
   const getStock = useProductStore((s) => s.getStock)
+
+  const hasPermission = useAuthStore((s) => s.hasPermission)
+  const canAdjust = hasPermission('manage_inventory')
+
+  useEffect(() => {
+    fetchProducts()
+    fetchBatches()
+  }, [fetchProducts, fetchBatches])
 
   const [query, setQuery] = useState('')
   const [productId, setProductId] = useState('All')
   const [scope, setScope] = useState<'All' | 'Low Stock' | 'Expiring Soon' | 'Depleted'>('All')
+  const [adjustOpen, setAdjustOpen] = useState(false)
 
   const rows: Row[] = useMemo(
     () =>
@@ -121,33 +135,46 @@ export function InventoryPage() {
         <SummaryCard icon={AlertTriangle} label="Batches Expiring Soon" value={expiringCount} tone="danger" />
       </div>
 
-      <FilterBar>
-        <FilterField label="Search">
-          <SearchBar value={query} onChange={setQuery} placeholder="Product, code or batch no." className="w-64" />
-        </FilterField>
-        <FilterField label="Product">
-          <select value={productId} onChange={(e) => setProductId(e.target.value)} className={selectClass}>
-            <option value="All">All Products</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="View">
-          <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} className={selectClass}>
-            <option>All</option>
-            <option>Low Stock</option>
-            <option>Expiring Soon</option>
-            <option>Depleted</option>
-          </select>
-        </FilterField>
-      </FilterBar>
+      <div className="flex items-center justify-between gap-2">
+        <FilterBar>
+          <FilterField label="Search">
+            <SearchBar value={query} onChange={setQuery} placeholder="Product, code or batch no." className="w-64" />
+          </FilterField>
+          <FilterField label="Product">
+            <select value={productId} onChange={(e) => setProductId(e.target.value)} className={selectClass}>
+              <option value="All">All Products</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+          <FilterField label="View">
+            <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} className={selectClass}>
+              <option>All</option>
+              <option>Low Stock</option>
+              <option>Expiring Soon</option>
+              <option>Depleted</option>
+            </select>
+          </FilterField>
+        </FilterBar>
+        {canAdjust && (
+          <Button variant="primary" onClick={() => setAdjustOpen(true)}>
+            <SlidersHorizontal size={15} /> Adjust Stock
+          </Button>
+        )}
+      </div>
 
       <div className="min-h-0 flex-1">
         <DataTable columns={columns} rows={filtered} keyField={(r) => r.id} />
       </div>
+
+      <AdjustmentModal
+        open={adjustOpen}
+        initialProductId={productId !== 'All' ? productId : undefined}
+        onClose={() => setAdjustOpen(false)}
+      />
     </div>
   )
 }

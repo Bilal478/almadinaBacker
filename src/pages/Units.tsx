@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, Power, PowerOff } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
@@ -13,11 +13,16 @@ import type { UnitOfMeasure } from '@/types'
 
 export function UnitsPage() {
   const units = useUnitStore((s) => s.units)
+  const fetchUnits = useUnitStore((s) => s.fetchAll)
   const addUnit = useUnitStore((s) => s.addUnit)
   const updateUnit = useUnitStore((s) => s.updateUnit)
   const setUnitStatus = useUnitStore((s) => s.setUnitStatus)
   const products = useProductStore((s) => s.products)
   const pushToast = useUiStore((s) => s.pushToast)
+
+  useEffect(() => {
+    fetchUnits()
+  }, [fetchUnits])
 
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)

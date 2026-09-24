@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Banknote, PackageX, ShoppingCart, TrendingUp, Truck } from 'lucide-react'
 import { useSalesStore } from '@/store/salesStore'
@@ -14,11 +14,20 @@ function todayIso() {
 export function DashboardPage() {
   const { user, role } = useCurrentUser()
   const allSales = useSalesStore((s) => s.sales)
+  const fetchSales = useSalesStore((s) => s.fetchAll)
   const sales = useMemo(() => allSales.filter((s2) => s2.status === 'completed'), [allSales])
   const products = useProductStore((s) => s.products)
+  const fetchProducts = useProductStore((s) => s.fetchAll)
   const getStock = useProductStore((s) => s.getStock)
   const suppliers = useSupplierStore((s) => s.suppliers)
+  const fetchSuppliers = useSupplierStore((s) => s.fetchAll)
   const getOutstanding = useSupplierStore((s) => s.getOutstanding)
+
+  useEffect(() => {
+    fetchSales()
+    fetchProducts()
+    fetchSuppliers()
+  }, [fetchSales, fetchProducts, fetchSuppliers])
 
   const today = todayIso()
   const todaySales = sales.filter((s) => s.date === today)

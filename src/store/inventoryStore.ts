@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Batch } from '@/types'
-import { getAll } from '@/lib/api'
+import { api, getAll } from '@/lib/api'
+import { useProductStore } from '@/store/productStore'
 
 interface ApiInventoryBatch {
   id: number
@@ -32,10 +33,16 @@ function toBatch(b: ApiInventoryBatch): Batch {
   }
 }
 
+export type AdjustmentType = 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'DAMAGE' | 'EXPIRY'
+
 interface InventoryState {
   batches: Batch[]
   loading: boolean
   fetchAll: () => Promise<void>
+  /** No supplier involved — a manual correction to what the system thinks is on the shelf.
+   *  ADJUSTMENT_IN needs no batchId (a fresh "found stock" batch is created); the other three
+   *  types remove stock from a specific existing batch and require one. */
+  adjustStock: (input: { productId: string; movementType: AdjustmentType; quantity: number; reason: string; batchId?: string }) => Promise<void>
 }
 
 export const useInventoryStore = create<InventoryState>((set) => ({
@@ -46,5 +53,16 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     set({ loading: true })
     const batches = await getAll<ApiInventoryBatch>('/inventory')
     set({ batches: batches.map(toBatch), loading: false })
+  },
+
+  adjustStock: async (input) => {
+    await api.post('/inventory/adjustment', {
+      product_id: input.productId,
+      batch_id: input.batchId || undefined,
+      quantity: input.quantity,
+      movement_type: input.movementType,
+      reason: input.reason,
+    })
+    await Promise.all([useInventoryStore.getState().fetchAll(), useProductStore.getState().fetchAll()])
   },
 }))

@@ -84,11 +84,10 @@ export const ProductSearchPanel = forwardRef<HTMLInputElement, object>(function 
         ))}
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 border-b border-border bg-panel-alt px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-ink-faint">
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 border-b border-border bg-panel-alt px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-ink-faint">
         <div>Product</div>
         <div className="w-20 text-center">Stock</div>
-        <div className="w-24 text-right">Customer</div>
-        <div className="w-24 text-right">Retailer</div>
+        <div className="w-24 text-right">Price</div>
         <div className="w-14 text-right">Unit</div>
       </div>
 

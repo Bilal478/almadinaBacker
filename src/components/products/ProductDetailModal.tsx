@@ -17,8 +17,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
   const [tab, setTab] = useState<Tab>('overview')
   const [showPriceForm, setShowPriceForm] = useState(false)
   const [cost, setCost] = useState('')
-  const [customerPrice, setCustomerPrice] = useState('')
-  const [retailerPrice, setRetailerPrice] = useState('')
+  const [sellingPrice, setSellingPrice] = useState('')
 
   const currentPrice = useProductStore(useShallow((s) => (product ? s.getCurrentPrice(product.id) : undefined)))
   const stock = useProductStore((s) => (product ? s.getStock(product.id) : 0))
@@ -37,26 +36,24 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
 
   function resetPriceForm() {
     setCost('')
-    setCustomerPrice('')
-    setRetailerPrice('')
+    setSellingPrice('')
     setShowPriceForm(false)
   }
 
   async function submitPriceChange() {
     if (!product) return
     const c = Number(cost)
-    const cp = Number(customerPrice)
-    const rp = Number(retailerPrice)
-    if (!c || !cp || !rp) {
-      pushToast('error', 'Enter purchase cost, customer price and retailer price.')
+    const sp = Number(sellingPrice)
+    if (!c || !sp) {
+      pushToast('error', 'Enter the purchase cost and selling price.')
       return
     }
     await addPriceHistoryEntry({
       productId: product.id,
       effectiveDate: new Date().toISOString().slice(0, 10),
       purchaseCost: c,
-      customerPrice: cp,
-      retailerPrice: rp,
+      customerPrice: sp,
+      retailerPrice: sp,
     })
     pushToast('success', 'New price recorded. Previous prices remain in history.')
     resetPriceForm()
@@ -83,8 +80,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <InfoTile label="Current Stock" value={`${formatNumber(stock)} ${product.unit}`} />
           <InfoTile label="Purchase Cost" value={formatCurrency(currentPrice?.purchaseCost ?? 0)} />
-          <InfoTile label="Customer Price" value={formatCurrency(currentPrice?.customerPrice ?? 0)} />
-          <InfoTile label="Retailer Price" value={formatCurrency(currentPrice?.retailerPrice ?? 0)} />
+          <InfoTile label="Selling Price" value={formatCurrency(currentPrice?.customerPrice ?? 0)} />
           <InfoTile label="Low Stock Alert" value={`${product.lowStockLevel} ${product.unit}`} />
           <InfoTile label="Barcode" value={product.barcode} />
           <InfoTile label="Expiry Tracking" value={product.expiryTracking ? 'Enabled' : 'Disabled'} />
@@ -108,11 +104,10 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
           </div>
 
           {showPriceForm && (
-            <div className="grid grid-cols-3 gap-2 rounded border border-border bg-panel-alt p-2.5">
+            <div className="grid grid-cols-2 gap-2 rounded border border-border bg-panel-alt p-2.5">
               <Field label="Purchase Cost" value={cost} onChange={setCost} />
-              <Field label="Customer Price" value={customerPrice} onChange={setCustomerPrice} />
-              <Field label="Retailer Price" value={retailerPrice} onChange={setRetailerPrice} />
-              <div className="col-span-3 flex justify-end">
+              <Field label="Selling Price" value={sellingPrice} onChange={setSellingPrice} />
+              <div className="col-span-2 flex justify-end">
                 <Button size="sm" variant="success" onClick={submitPriceChange}>
                   Save New Price
                 </Button>

@@ -44,6 +44,7 @@ interface ApiSale {
 function toSaleItem(i: ApiSaleItem): SaleItem {
   const unit = useProductStore.getState().getProduct(String(i.product_id))?.unit ?? ''
   return {
+    id: String(i.id),
     productId: String(i.product_id),
     name: i.name,
     code: i.sku,
@@ -53,6 +54,7 @@ function toSaleItem(i: ApiSaleItem): SaleItem {
     unitCost: i.unit_cost ?? 0,
     discount: Number(i.discount),
     total: Number(i.line_total),
+    returnedQty: Number(i.returned_quantity),
   }
 }
 
@@ -100,6 +102,10 @@ interface SalesState {
   }) => Promise<Sale>
   voidSale: (id: string) => Promise<void>
   markPrinted: (id: string) => Promise<void>
+  createReturn: (
+    saleId: string,
+    input: { items: { saleItemId: string; quantity: number }[]; reason?: string; restock?: boolean },
+  ) => Promise<{ totalRefund: number }>
 }
 
 export const useSalesStore = create<SalesState>((set) => ({
@@ -142,5 +148,21 @@ export const useSalesStore = create<SalesState>((set) => ({
   markPrinted: async (id) => {
     const sale = toSale(await api.post<ApiSale>(`/sales/${id}/mark-printed`))
     set((state) => ({ sales: state.sales.map((s) => (s.id === id ? sale : s)) }))
+  },
+
+  createReturn: async (saleId, input) => {
+    const result = await api.post<{ total_refund: string | number }>(`/sales/${saleId}/return`, {
+      items: input.items.map((i) => ({ sale_item_id: i.saleItemId, quantity: i.quantity })),
+      reason: input.reason || undefined,
+      restock: input.restock,
+    })
+    // The return endpoint returns the SaleReturn record, not the updated Sale — refetch so
+    // every item's returnedQty (and the restocked stock levels) reflect the change everywhere.
+    await Promise.all([
+      useSalesStore.getState().fetchAll(),
+      useProductStore.getState().fetchAll(),
+      useInventoryStore.getState().fetchAll(),
+    ])
+    return { totalRefund: Number(result.total_refund) }
   },
 }))

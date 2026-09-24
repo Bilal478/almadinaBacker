@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, Monitor } from 'lucide-react'
+import { LogOut, Monitor, UserCircle } from 'lucide-react'
 import { NAV_ITEMS } from '@/components/layout/navConfig'
 import { useAuthStore, useCurrentUser } from '@/store/authStore'
+import { ProfileModal } from '@/components/layout/ProfileModal'
 import { formatDate, formatTime } from '@/lib/format'
 
 function currentTitle(pathname: string): string {
@@ -16,6 +17,7 @@ export function TopBar() {
   const { user, role } = useCurrentUser()
   const logout = useAuthStore((s) => s.logout)
   const [now, setNow] = useState(new Date())
+  const [profileOpen, setProfileOpen] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -38,10 +40,17 @@ export function TopBar() {
             {user.counter}
           </span>
         )}
-        <div className="text-right leading-tight">
-          <div className="font-medium text-ink">{user?.name ?? 'Guest'}</div>
-          <div className="text-[10.5px] text-ink-faint">{role?.name}</div>
-        </div>
+        <button
+          onClick={() => setProfileOpen(true)}
+          className="flex items-center gap-1.5 rounded px-1.5 py-1 text-right leading-tight hover:bg-panel-alt"
+          title="My Profile"
+        >
+          <UserCircle size={18} className="text-ink-faint" />
+          <span>
+            <div className="font-medium text-ink">{user?.name ?? 'Guest'}</div>
+            <div className="text-[10.5px] text-ink-faint">{role?.name}</div>
+          </span>
+        </button>
         <div className="text-right leading-tight border-l border-border pl-4">
           <div className="font-medium text-ink tabular-nums">{formatTime(now)}</div>
           <div className="text-[10.5px] text-ink-faint">{formatDate(now.toISOString())}</div>
@@ -54,6 +63,8 @@ export function TopBar() {
           Logout
         </button>
       </div>
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </header>
   )
 }

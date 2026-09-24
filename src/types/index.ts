@@ -158,6 +158,8 @@ export interface CartItem {
 export type PriceTier = 'customer' | 'retailer'
 
 export interface SaleItem {
+  /** The sale_item row id — required to process a return against this exact line. */
+  id: string
   productId: string
   name: string
   code: string
@@ -167,6 +169,8 @@ export interface SaleItem {
   unitCost: number
   discount: number
   total: number
+  /** Already returned from this line, across all prior returns — caps how much more can go back. */
+  returnedQty: number
 }
 
 export type SaleStatus = 'completed' | 'held' | 'voided'

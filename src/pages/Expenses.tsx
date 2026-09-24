@@ -15,6 +15,7 @@ import type { Expense } from '@/types'
 
 export function ExpensesPage() {
   const expenses = useExpenseStore((s) => s.expenses)
+  const fetchExpenses = useExpenseStore((s) => s.fetchAll)
   const addExpense = useExpenseStore((s) => s.addExpense)
   const voidExpense = useExpenseStore((s) => s.voidExpense)
   const categories = useExpenseCategoryStore((s) => s.categories)
@@ -22,8 +23,9 @@ export function ExpensesPage() {
   const pushToast = useUiStore((s) => s.pushToast)
 
   useEffect(() => {
-    if (categories.length === 0) fetchCategories()
-  }, [categories.length, fetchCategories])
+    fetchExpenses()
+    fetchCategories()
+  }, [fetchExpenses, fetchCategories])
 
   const [from, setFrom] = useState('2026-01-01')
   const [to, setTo] = useState('2026-12-31')

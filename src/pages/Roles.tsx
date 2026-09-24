@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Lock, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { Modal } from '@/components/common/Modal'
@@ -12,10 +12,15 @@ import type { PermissionKey, Role } from '@/types'
 export function RolesPage() {
   const roles = useUserStore((s) => s.roles)
   const users = useUserStore((s) => s.users)
+  const fetchUsers = useUserStore((s) => s.fetchAll)
   const addRole = useUserStore((s) => s.addRole)
   const updateRole = useUserStore((s) => s.updateRole)
   const deleteRole = useUserStore((s) => s.deleteRole)
   const pushToast = useUiStore((s) => s.pushToast)
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Role | null>(null)

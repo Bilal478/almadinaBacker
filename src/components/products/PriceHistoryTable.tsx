@@ -26,8 +26,7 @@ export function PriceHistoryTable({ productId }: { productId: string }) {
           ),
         },
         { key: 'purchaseCost', header: 'Purchase Cost', align: 'right', render: (e) => formatCurrency(e.purchaseCost) },
-        { key: 'customerPrice', header: 'Customer Price', align: 'right', render: (e) => formatCurrency(e.customerPrice) },
-        { key: 'retailerPrice', header: 'Retailer Price', align: 'right', render: (e) => formatCurrency(e.retailerPrice) },
+        { key: 'customerPrice', header: 'Selling Price', align: 'right', render: (e) => formatCurrency(e.customerPrice) },
         { key: 'changedBy', header: 'Changed By', render: (e) => e.changedBy },
         { key: 'note', header: 'Note', render: (e) => <span className="text-ink-faint">{e.note ?? '—'}</span> },
       ]}

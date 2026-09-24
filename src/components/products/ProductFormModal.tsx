@@ -6,6 +6,7 @@ import { useProductStore } from '@/store/productStore'
 import { useUnitStore } from '@/store/unitStore'
 import { useCategoryStore } from '@/store/categoryStore'
 import { useUiStore } from '@/store/uiStore'
+import { useAuthStore } from '@/store/authStore'
 import { api, ApiError } from '@/lib/api'
 import type { Product, Unit } from '@/types'
 
@@ -14,6 +15,8 @@ interface BarcodeLookupResult {
   suggested_name?: string
   brand?: string | null
 }
+
+type LookupStatus = 'idle' | 'loading' | 'found' | 'not-found' | 'exists'
 
 interface FormState {
   name: string
@@ -25,8 +28,10 @@ interface FormState {
   expiryTracking: boolean
   status: 'active' | 'inactive'
   purchaseCost: string
-  customerPrice: string
-  retailerPrice: string
+  /** One price for every customer — stored on the backend as both customer/retailer price
+   *  (same value) since this app still supports that split, but nothing here ever asks for
+   *  or shows two different prices anymore. */
+  sellingPrice: string
   openingQuantity: string
   openingExpiryDate: string
 }
@@ -41,8 +46,7 @@ const EMPTY: FormState = {
   expiryTracking: true,
   status: 'active',
   purchaseCost: '',
-  customerPrice: '',
-  retailerPrice: '',
+  sellingPrice: '',
   openingQuantity: '',
   openingExpiryDate: '',
 }
@@ -55,6 +59,8 @@ export function ProductFormModal({
   initialBarcode,
   hideOpeningStock,
   onCreated,
+  onEditExisting,
+  onAdjustExisting,
 }: {
   open: boolean
   product: Product | null
@@ -65,13 +71,24 @@ export function ProductFormModal({
   initialBarcode?: string
   /** Hides the Opening Stock section — used when the caller (e.g. a Purchase line) will supply the first batch itself. */
   hideOpeningStock?: boolean
+  /** Called when a scanned/typed barcode turns out to already belong to a product in this
+   *  system — lets the caller switch this same form into editing that product instead of
+   *  letting the cashier attempt (and fail on a unique-constraint error) to create a duplicate. */
+  onEditExisting?: (product: Product) => void
+  /** Called for that same "already exists" case, offered as the primary action — scanning an
+   *  existing product while trying to "add" one almost always means "I have more of this,"
+   *  not "I need to fix its name," so this jumps straight to Stock Adjustment for it. */
+  onAdjustExisting?: (product: Product) => void
   /** Called with the newly created product, in addition to onClose. */
   onCreated?: (product: Product) => void
 }) {
   const [form, setForm] = useState<FormState>(EMPTY)
   const [submitting, setSubmitting] = useState(false)
-  const [lookup, setLookup] = useState<'idle' | 'loading' | 'found' | 'not-found'>('idle')
+  const [lookup, setLookup] = useState<LookupStatus>('idle')
+  const [existingMatch, setExistingMatch] = useState<Product | null>(null)
   const lookedUpBarcodeRef = useRef<string | null>(null)
+  const canAdjustInventory = useAuthStore((s) => s.hasPermission('manage_inventory'))
+  const allProducts = useProductStore((s) => s.products)
   const addProduct = useProductStore((s) => s.addProduct)
   const updateProduct = useProductStore((s) => s.updateProduct)
   const allUnits = useUnitStore((s) => s.units)
@@ -94,8 +111,7 @@ export function ProductFormModal({
         expiryTracking: product.expiryTracking,
         status: product.status,
         purchaseCost: '',
-        customerPrice: '',
-        retailerPrice: '',
+        sellingPrice: '',
         openingQuantity: '',
         openingExpiryDate: '',
       })
@@ -104,6 +120,7 @@ export function ProductFormModal({
     }
     lookedUpBarcodeRef.current = null
     setLookup('idle')
+    setExistingMatch(null)
   }, [product, open, initialName, initialBarcode, categories])
 
   // Fires off ANY barcode-shaped value landing in the Barcode field while adding a new
@@ -118,10 +135,22 @@ export function ProductFormModal({
     if (!/^\d{6,}$/.test(barcode)) {
       lookedUpBarcodeRef.current = null
       setLookup('idle')
+      setExistingMatch(null)
       return
     }
     if (lookedUpBarcodeRef.current === barcode) return
     lookedUpBarcodeRef.current = barcode
+
+    // Check THIS system's own catalog first — an external lookup only knows about public
+    // commercial products and will always say "not found" for anything already in this
+    // bakery's own database, which previously looked exactly like a bug (scan an existing
+    // product while adding a new one and get silence instead of "you already have this").
+    const local = allProducts.find((p) => p.barcode === barcode)
+    if (local) {
+      setExistingMatch(local)
+      setLookup('exists')
+      return
+    }
 
     let cancelled = false
     setLookup('loading')
@@ -150,7 +179,7 @@ export function ProductFormModal({
       cancelled = true
       clearTimeout(timer)
     }
-  }, [open, isEdit, form.barcode])
+  }, [open, isEdit, form.barcode, allProducts])
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -164,8 +193,8 @@ export function ProductFormModal({
       return
     }
 
-    if (!isEdit && (!form.purchaseCost || !form.customerPrice || !form.retailerPrice)) {
-      pushToast('error', 'Enter purchase cost, customer price and retailer price for the new product.')
+    if (!isEdit && (!form.purchaseCost || !form.sellingPrice)) {
+      pushToast('error', 'Enter the purchase cost and selling price for the new product.')
       return
     }
 
@@ -194,8 +223,8 @@ export function ProductFormModal({
           expiryTracking: form.expiryTracking,
           status: form.status,
           purchaseCost: Number(form.purchaseCost),
-          customerPrice: Number(form.customerPrice),
-          retailerPrice: Number(form.retailerPrice),
+          customerPrice: Number(form.sellingPrice),
+          retailerPrice: Number(form.sellingPrice),
           openingQuantity: openingQty || undefined,
           openingExpiryDate: form.openingExpiryDate || undefined,
         })
@@ -221,7 +250,7 @@ export function ProductFormModal({
           <Button variant="ghost" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
+          <Button variant="primary" onClick={handleSubmit} disabled={submitting || lookup === 'exists'}>
             {submitting ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Product'}
           </Button>
         </>
@@ -262,6 +291,40 @@ export function ProductFormModal({
           onChange={(v) => set('barcode', v)}
           autoFocus={!isEdit && !initialBarcode && !initialName}
         />
+        {lookup === 'exists' && existingMatch && (
+          <div className="col-span-2 space-y-2 rounded border border-warning bg-warning-bg px-3 py-2 text-[12.5px] text-warning">
+            <p>
+              This barcode already belongs to <strong>{existingMatch.name}</strong> ({existingMatch.code}) — creating another
+              product here would fail.
+            </p>
+            <div className="flex items-center gap-3">
+              {onAdjustExisting && canAdjustInventory && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => {
+                    onAdjustExisting(existingMatch)
+                    onClose()
+                  }}
+                >
+                  Add Stock For It
+                </Button>
+              )}
+              {onEditExisting && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onEditExisting(existingMatch)
+                    onClose()
+                  }}
+                  className="text-[11.5px] font-medium underline hover:no-underline"
+                >
+                  Edit its details instead
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-faint">Category</label>
           <select
@@ -320,8 +383,7 @@ export function ProductFormModal({
               Initial Pricing
             </div>
             <TextField label="Purchase Cost" value={form.purchaseCost} onChange={(v) => set('purchaseCost', v)} type="number" />
-            <TextField label="Customer Price" value={form.customerPrice} onChange={(v) => set('customerPrice', v)} type="number" />
-            <TextField label="Retailer Price" value={form.retailerPrice} onChange={(v) => set('retailerPrice', v)} type="number" />
+            <TextField label="Selling Price" value={form.sellingPrice} onChange={(v) => set('sellingPrice', v)} type="number" />
 
             {hideOpeningStock ? (
               <p className="col-span-2 text-xs text-ink-faint">

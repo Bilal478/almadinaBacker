@@ -5,6 +5,8 @@ import { HeldSalesModal } from '@/components/pos/HeldSalesModal'
 import { ReceiptModal } from '@/components/pos/ReceiptModal'
 import { useCartStore } from '@/store/cartStore'
 import { useSalesStore } from '@/store/salesStore'
+import { useProductStore } from '@/store/productStore'
+import { useInventoryStore } from '@/store/inventoryStore'
 import { useCurrentUser } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
 import { nextInvoiceNo } from '@/lib/id'
@@ -35,8 +37,17 @@ export function PosPage() {
   const removeItem = useCartStore((s) => s.removeItem)
 
   const completeSaleAction = useSalesStore((s) => s.completeSale)
+  const fetchProducts = useProductStore((s) => s.fetchAll)
+  const fetchInventory = useInventoryStore((s) => s.fetchAll)
   const { user } = useCurrentUser()
   const pushToast = useUiStore((s) => s.pushToast)
+
+  // Stock and prices must be current the moment a cashier opens the till — stale numbers
+  // here mean overselling something that's actually out, or charging an old price.
+  useEffect(() => {
+    fetchProducts()
+    fetchInventory()
+  }, [fetchProducts, fetchInventory])
 
   async function handleCompleteSale() {
     if (submittingSale) return

@@ -12,6 +12,7 @@ export function SupplierPaymentsPage() {
   const suppliers = useSupplierStore((s) => s.suppliers)
   const purchases = useSupplierStore((s) => s.purchases)
   const payments = useSupplierStore((s) => s.payments)
+  const fetchSuppliers = useSupplierStore((s) => s.fetchAll)
   const getLedger = useSupplierStore((s) => s.getLedger)
   const fetchLedger = useSupplierStore((s) => s.fetchLedger)
   const getOutstanding = useSupplierStore((s) => s.getOutstanding)
@@ -19,6 +20,10 @@ export function SupplierPaymentsPage() {
   const supplierId = searchParams.get('supplierId') || suppliers[0]?.id || ''
   const supplier = suppliers.find((s) => s.id === supplierId)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+
+  useEffect(() => {
+    fetchSuppliers()
+  }, [fetchSuppliers])
 
   useEffect(() => {
     if (supplierId) fetchLedger(supplierId)

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, Pencil, Plus, Power, PowerOff } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
@@ -16,10 +16,15 @@ import type { Supplier } from '@/types'
 export function SuppliersPage() {
   const suppliers = useSupplierStore((s) => s.suppliers)
   const supplierTypes = useSupplierStore((s) => s.supplierTypes)
+  const fetchSuppliers = useSupplierStore((s) => s.fetchAll)
   const getOutstanding = useSupplierStore((s) => s.getOutstanding)
   const setSupplierStatus = useSupplierStore((s) => s.setSupplierStatus)
   const pushToast = useUiStore((s) => s.pushToast)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchSuppliers()
+  }, [fetchSuppliers])
 
   const [query, setQuery] = useState('')
   const [typeId, setTypeId] = useState('All')

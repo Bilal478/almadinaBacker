@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Eye, Plus } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
@@ -17,8 +17,15 @@ const STATUS_TONE: Record<Purchase['status'], BadgeTone> = { paid: 'success', pa
 export function PurchasesPage() {
   const purchases = useSupplierStore((s) => s.purchases)
   const suppliers = useSupplierStore((s) => s.suppliers)
+  const fetchSuppliers = useSupplierStore((s) => s.fetchAll)
   const getSupplier = useSupplierStore((s) => s.getSupplier)
   const getProduct = useProductStore((s) => s.getProduct)
+  const fetchProducts = useProductStore((s) => s.fetchAll)
+
+  useEffect(() => {
+    fetchSuppliers()
+    fetchProducts()
+  }, [fetchSuppliers, fetchProducts])
 
   const [query, setQuery] = useState('')
   const [supplierId, setSupplierId] = useState('All')

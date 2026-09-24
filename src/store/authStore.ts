@@ -6,6 +6,8 @@ interface AuthUser {
   id: string
   name: string
   username: string
+  email: string | null
+  phone: string | null
   counter: string | null
   roleId: string
   roleName: string
@@ -20,12 +22,16 @@ interface AuthState {
   login: (username: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   hasPermission: (permission: PermissionKey) => boolean
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  updateProfile: (patch: { name: string; username: string; email?: string; phone?: string }) => Promise<void>
 }
 
 interface RawUser {
   id: number
   name: string
   username: string
+  email: string | null
+  phone: string | null
   counter: string | null
   role_id: number
   role_name: string
@@ -37,6 +43,8 @@ function normalizeUser(raw: RawUser): AuthUser {
     id: String(raw.id),
     name: raw.name,
     username: raw.username,
+    email: raw.email,
+    phone: raw.phone,
     counter: raw.counter,
     roleId: String(raw.role_id),
     roleName: raw.role_name,
@@ -83,6 +91,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hasPermission: (permission) => {
     const { user } = get()
     return user ? user.permissions.includes(permission) : false
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    await api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+  },
+
+  updateProfile: async (patch) => {
+    const updated = await api.put<RawUser>('/auth/profile', {
+      name: patch.name,
+      username: patch.username,
+      email: patch.email || null,
+      phone: patch.phone || null,
+    })
+    set({ user: normalizeUser(updated) })
   },
 }))
 

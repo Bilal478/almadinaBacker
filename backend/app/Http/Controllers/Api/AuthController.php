@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -50,7 +51,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => ['required'],
-            'new_password' => ['required', 'string', 'min:6'],
+            'new_password' => ['required', 'string', 'min:8'],
         ]);
 
         $user = $request->user();
@@ -62,5 +63,28 @@ class AuthController extends Controller
         AuditLogger::log('changed_password', 'auth', 'user', $user->id);
 
         return $this->success(null, 'Password updated');
+    }
+
+    /**
+     * Self-service profile edit — deliberately narrower than the admin-only UserController:
+     * name/email/phone/username only. Role and status stay account-administration concerns,
+     * not something a user should be able to change about themselves.
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($user->id)],
+            'email' => ['nullable', 'email', 'max:150'],
+            'phone' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        $old = $user->toArray();
+        $user->update($request->only(['name', 'username', 'email', 'phone']));
+        AuditLogger::log('updated_profile', 'auth', 'user', $user->id, $old, $user->fresh()->toArray());
+
+        return $this->success(new UserResource($user->load('role.permissions')), 'Profile updated');
     }
 }

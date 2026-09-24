@@ -1,12 +1,10 @@
 import { forwardRef } from 'react'
-import clsx from 'clsx'
 import { PauseCircle, ShoppingBag, Users } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { CartItemRow } from '@/components/pos/CartItemRow'
 import { PaymentPanel } from '@/components/pos/PaymentPanel'
 import { Button } from '@/components/common/Button'
 import { formatCurrency } from '@/lib/format'
-import type { PriceTier } from '@/types'
 
 interface CartPanelProps {
   invoiceNo: string
@@ -26,8 +24,6 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
   const items = useCartStore((s) => s.items)
   const customerName = useCartStore((s) => s.customerName)
   const setCustomerName = useCartStore((s) => s.setCustomerName)
-  const priceTier = useCartStore((s) => s.priceTier)
-  const setPriceTier = useCartStore((s) => s.setPriceTier)
   const heldSales = useCartStore((s) => s.heldSales)
   const subtotal = useCartStore((s) => s.subtotal())
   const totalDiscount = useCartStore((s) => s.totalDiscount())
@@ -59,21 +55,6 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
             placeholder="Customer name (optional) — F4"
             className="w-full rounded border border-border-strong bg-panel py-1.5 pl-7 pr-2 text-[12.5px] outline-none placeholder:text-ink-faint focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-1.5">
-          {(['customer', 'retailer'] as PriceTier[]).map((tier) => (
-            <button
-              key={tier}
-              onClick={() => setPriceTier(tier)}
-              className={clsx(
-                'rounded border py-1 text-[11.5px] font-semibold capitalize transition-colors',
-                priceTier === tier ? 'border-brand-600 bg-brand-600 text-white' : 'border-border-strong text-ink-soft hover:bg-panel-alt',
-              )}
-            >
-              {tier} price
-            </button>
-          ))}
         </div>
       </div>
 
