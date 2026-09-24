@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Printer } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { useSettingsStore, type BusinessSettings } from '@/store/settingsStore'
 import { useUiStore } from '@/store/uiStore'
 import { ApiError } from '@/lib/api'
+import { TestPrintModal } from '@/components/pos/TestPrintModal'
 
 const EMPTY: BusinessSettings = {
   storeName: '',
@@ -22,6 +24,7 @@ export function SettingsPage() {
   const save = useSettingsStore((s) => s.save)
   const [form, setForm] = useState<BusinessSettings>(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [testPrintOpen, setTestPrintOpen] = useState(false)
 
   useEffect(() => {
     if (settings) setForm(settings)
@@ -73,6 +76,17 @@ export function SettingsPage() {
 
       <Section title="Receipt Settings">
         <Field label="Receipt Footer Message" value={form.receiptFooter} onChange={(v) => set('receiptFooter', v)} span2 />
+        <div className="col-span-2 flex items-center justify-between rounded border border-border bg-panel-alt px-3 py-2">
+          <div>
+            <div className="text-[12.5px] font-medium text-ink">Test the receipt printer</div>
+            <div className="text-[11px] text-ink-faint">
+              Print a sample receipt with fake data — useful when setting up a new till, without touching real sales.
+            </div>
+          </div>
+          <Button variant="secondary" onClick={() => setTestPrintOpen(true)}>
+            <Printer size={14} /> Test Print
+          </Button>
+        </div>
       </Section>
 
       <div className="flex justify-end">
@@ -80,6 +94,8 @@ export function SettingsPage() {
           {saving ? 'Saving…' : 'Save Settings'}
         </Button>
       </div>
+
+      <TestPrintModal open={testPrintOpen} onClose={() => setTestPrintOpen(false)} />
     </div>
   )
 }
