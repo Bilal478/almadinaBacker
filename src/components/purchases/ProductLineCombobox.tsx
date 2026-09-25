@@ -109,7 +109,8 @@ export const ProductLineCombobox = forwardRef<HTMLInputElement, ProductLineCombo
             >
               <span className="font-medium text-ink">{p.name}</span>
               <span className="text-[11px] text-ink-faint">
-                {p.code} &middot; {p.barcode}
+                {p.code}
+                {p.barcode && <> &middot; {p.barcode}</>}
               </span>
             </button>
           ))}

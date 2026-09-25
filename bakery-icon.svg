@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FCD34D"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="loaf" x1="0" y1="95" x2="0" y2="186" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#B5732F"/>
+      <stop offset="1" stop-color="#7C4A21"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+
+  <!-- grocery/mart bag -->
+  <path d="M84,146 L172,146 L184,206 C185.5,213 180,217 174,217 L82,217 C76,217 70.5,213 72,206 Z"
+        fill="#FFFDF7" stroke="#E3B36B" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="80" y="126" width="96" height="20" rx="7" fill="#FFF7E8" stroke="#E3B36B" stroke-width="4"/>
+  <line x1="128" y1="150" x2="128" y2="213" stroke="#E3B36B" stroke-width="3" opacity="0.55"/>
+
+  <!-- bread loaf peeking out of the bag -->
+  <circle cx="104" cy="124" r="20" fill="url(#loaf)"/>
+  <circle cx="128" cy="113" r="23" fill="url(#loaf)"/>
+  <circle cx="152" cy="124" r="20" fill="url(#loaf)"/>
+  <path d="M90,158 C90,135 104,115 128,115 C152,115 166,135 166,158 C166,177 152,185 128,185 C104,185 90,177 90,158 Z" fill="url(#loaf)"/>
+
+  <!-- crust score marks -->
+  <g stroke="#FDE9C8" stroke-width="5.5" stroke-linecap="round">
+    <line x1="105" y1="129" x2="116" y2="147"/>
+    <line x1="123" y1="122" x2="134" y2="144"/>
+    <line x1="141" y1="127" x2="152" y2="145"/>
+  </g>
+</svg>

@@ -29,6 +29,7 @@ export function UnitsPage() {
   const [editing, setEditing] = useState<UnitOfMeasure | null>(null)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
+  const [decimalAllowed, setDecimalAllowed] = useState(false)
   const [toggleTarget, setToggleTarget] = useState<UnitOfMeasure | null>(null)
 
   const filtered = useMemo(() => {
@@ -41,6 +42,7 @@ export function UnitsPage() {
     setEditing(null)
     setCode('')
     setName('')
+    setDecimalAllowed(false)
     setFormOpen(true)
   }
 
@@ -48,6 +50,7 @@ export function UnitsPage() {
     setEditing(u)
     setCode(u.code)
     setName(u.name)
+    setDecimalAllowed(u.decimalAllowed)
     setFormOpen(true)
   }
 
@@ -62,10 +65,10 @@ export function UnitsPage() {
       return
     }
     if (editing) {
-      updateUnit(editing.id, { code: code.trim(), name: name.trim() })
+      updateUnit(editing.id, { code: code.trim(), name: name.trim(), decimalAllowed })
       pushToast('success', 'Unit updated.')
     } else {
-      addUnit({ code: code.trim(), name: name.trim() })
+      addUnit({ code: code.trim(), name: name.trim(), decimalAllowed })
       pushToast('success', 'Unit added.')
     }
     setFormOpen(false)
@@ -74,6 +77,12 @@ export function UnitsPage() {
   const columns: DataTableColumn<UnitOfMeasure>[] = [
     { key: 'code', header: 'Code', render: (u) => <span className="font-semibold text-ink">{u.code}</span> },
     { key: 'name', header: 'Unit Name', render: (u) => u.name },
+    {
+      key: 'decimal',
+      header: 'Fractional Qty',
+      align: 'center',
+      render: (u) => (u.decimalAllowed ? <span className="text-success">Yes (e.g. 0.5)</span> : <span className="text-ink-faint">Whole numbers only</span>),
+    },
     { key: 'count', header: 'Products Using It', align: 'right', render: (u) => products.filter((p) => p.unit === u.code).length },
     { key: 'status', header: 'Status', render: (u) => <StatusBadge tone={u.status === 'active' ? 'success' : 'neutral'}>{u.status}</StatusBadge> },
     {
@@ -142,6 +151,16 @@ export function UnitsPage() {
               className="w-full rounded border border-border-strong bg-panel px-2 py-1.5 text-sm outline-none focus:border-brand-500"
             />
           </div>
+          <label className="flex items-start gap-2 text-sm text-ink-soft">
+            <input type="checkbox" checked={decimalAllowed} onChange={(e) => setDecimalAllowed(e.target.checked)} className="mt-0.5" />
+            <span>
+              Allow fractional quantities (e.g. 0.5, 0.25)
+              <span className="block text-[11px] text-ink-faint">
+                Turn this on for weight/volume units like Kilogram or Litre, so a product using it can be bought/sold in fractions
+                (0.3 kg = 300g). Leave off for count units like Pieces or Dozen.
+              </span>
+            </span>
+          </label>
         </div>
       </Modal>
 

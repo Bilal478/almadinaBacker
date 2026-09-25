@@ -7,9 +7,19 @@ interface ReportTableProps<T> {
   keyField: (row: T) => string
   totals?: React.ReactNode[]
   emptyMessage?: string
+  /** When given, every row becomes clickable — action buttons inside a row's own cells must
+   *  call e.stopPropagation() so clicking them doesn't also trigger this. */
+  onRowClick?: (row: T) => void
 }
 
-export function ReportTable<T>({ columns, rows, keyField, totals, emptyMessage = 'No data for the selected filters.' }: ReportTableProps<T>) {
+export function ReportTable<T>({
+  columns,
+  rows,
+  keyField,
+  totals,
+  emptyMessage = 'No data for the selected filters.',
+  onRowClick,
+}: ReportTableProps<T>) {
   return (
     <div className="overflow-auto rounded border border-border bg-panel">
       <table className="w-full min-w-max border-collapse text-sm">
@@ -39,7 +49,11 @@ export function ReportTable<T>({ columns, rows, keyField, totals, emptyMessage =
             </tr>
           )}
           {rows.map((row) => (
-            <tr key={keyField(row)} className="border-b border-border last:border-b-0">
+            <tr
+              key={keyField(row)}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={clsx('border-b border-border last:border-b-0', onRowClick && 'cursor-pointer hover:bg-panel-alt')}
+            >
               {columns.map((col) => (
                 <td
                   key={col.key}

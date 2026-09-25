@@ -21,7 +21,8 @@ export function ProductResultRow({ product }: { product: Product }) {
       <div className="min-w-0">
         <div className="truncate text-[13px] font-semibold text-ink">{product.name}</div>
         <div className="truncate text-[11px] text-ink-faint">
-          {product.code} &middot; {product.barcode}
+          {product.code}
+          {product.barcode && <> &middot; {product.barcode}</>}
         </div>
       </div>
 

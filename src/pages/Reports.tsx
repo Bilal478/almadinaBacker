@@ -6,13 +6,16 @@ import { ReportFilterBar, DEFAULT_REPORT_FILTERS, type ReportFilters } from '@/c
 import { Button } from '@/components/common/Button'
 import { ReceiptModal } from '@/components/pos/ReceiptModal'
 import { ReturnModal } from '@/components/pos/ReturnModal'
+import { SaleDetailModal } from '@/components/pos/SaleDetailModal'
 import { useSalesStore } from '@/store/salesStore'
 import { useProductStore } from '@/store/productStore'
+import { useInventoryStore } from '@/store/inventoryStore'
 import { useSupplierStore } from '@/store/supplierStore'
 import { useExpenseStore } from '@/store/expenseStore'
 import { useAuthStore } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
+import { downloadCsv } from '@/lib/csv'
 import type { Sale } from '@/types'
 
 type Tab = 'sales' | 'products' | 'sellers' | 'suppliers' | 'outstanding' | 'profit' | 'expenses' | 'inventory'
@@ -28,11 +31,24 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'inventory', label: 'Inventory Report' },
 ]
 
+/** Which filters each tab's UI actually shows — also used to silently reset the ones it
+ *  doesn't, so switching tabs can never leave an invisible filter (set on a different tab)
+ *  still narrowing this one's numbers with no control on screen to explain why. */
+function shownFiltersFor(tab: Tab) {
+  return {
+    product: tab === 'sales' || tab === 'products' || tab === 'profit',
+    seller: tab === 'sales' || tab === 'sellers' || tab === 'products',
+    supplier: tab === 'suppliers' || tab === 'outstanding',
+    paymentMethod: tab === 'sales',
+  }
+}
+
 export function ReportsPage() {
   const [tab, setTab] = useState<Tab>('sales')
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS)
   const [reprintSale, setReprintSale] = useState<Sale | null>(null)
   const [returnSale, setReturnSale] = useState<Sale | null>(null)
+  const [viewingSale, setViewingSale] = useState<Sale | null>(null)
   const hasPermission = useAuthStore((s) => s.hasPermission)
   const pushToast = useUiStore((s) => s.pushToast)
   const canExport = hasPermission('export_reports')
@@ -45,6 +61,8 @@ export function ReportsPage() {
   const fetchProducts = useProductStore((s) => s.fetchAll)
   const getStock = useProductStore((s) => s.getStock)
   const getCurrentPrice = useProductStore((s) => s.getCurrentPrice)
+  const batches = useInventoryStore((s) => s.batches)
+  const fetchInventory = useInventoryStore((s) => s.fetchAll)
   const suppliers = useSupplierStore((s) => s.suppliers)
   const purchases = useSupplierStore((s) => s.purchases)
   const fetchSuppliers = useSupplierStore((s) => s.fetchAll)
@@ -56,9 +74,23 @@ export function ReportsPage() {
   useEffect(() => {
     fetchSales()
     fetchProducts()
+    fetchInventory()
     fetchSuppliers()
     fetchExpenses()
-  }, [fetchSales, fetchProducts, fetchSuppliers, fetchExpenses])
+  }, [fetchSales, fetchProducts, fetchInventory, fetchSuppliers, fetchExpenses])
+
+  // Switching to a tab that doesn't show a given filter's control clears that filter, so it
+  // can never keep silently narrowing this tab's numbers with no visible way to tell why.
+  useEffect(() => {
+    const shown = shownFiltersFor(tab)
+    setFilters((f) => ({
+      ...f,
+      productId: shown.product ? f.productId : 'All',
+      sellerId: shown.seller ? f.sellerId : 'All',
+      supplierId: shown.supplier ? f.supplierId : 'All',
+      paymentMethod: shown.paymentMethod ? f.paymentMethod : 'All',
+    }))
+  }, [tab])
 
   function patchFilters(patch: Partial<ReportFilters>) {
     setFilters((f) => ({ ...f, ...patch }))
@@ -76,27 +108,51 @@ export function ReportsPage() {
     [allSales, filters],
   )
 
-  // Flattened line-level rows — the unit needed for product/seller aggregation.
+  // Flattened line-level rows — the unit needed for product/seller aggregation. Every figure
+  // here is NET of returns: a returned unit's revenue/cost is backed out using the same
+  // "returnedQty * unitPrice" the backend actually records as the refund (ReturnModal / the
+  // SaleReturnService), so this always matches what a Return actually did to the sale.
   const saleLines = useMemo(
     () =>
       filteredSales.flatMap((sale) =>
         sale.items
           .filter((i) => filters.productId === 'All' || i.productId === filters.productId)
-          .map((item) => ({
-            saleId: sale.id,
-            invoiceNo: sale.invoiceNo,
-            date: sale.date,
-            cashierId: sale.cashierId,
-            cashierName: sale.cashierName,
-            paymentMethod: sale.paymentMethod,
-            ...item,
-            profit: item.qty * item.unitPrice - item.discount - item.qty * item.unitCost,
-            revenue: item.qty * item.unitPrice - item.discount,
-            cost: item.qty * item.unitCost,
-          })),
+          .map((item) => {
+            const netQty = item.qty - item.returnedQty
+            const returnedAmount = item.returnedQty * item.unitPrice
+            const revenue = item.qty * item.unitPrice - item.discount - returnedAmount
+            const cost = netQty * item.unitCost
+            return {
+              saleId: sale.id,
+              invoiceNo: sale.invoiceNo,
+              date: sale.date,
+              cashierId: sale.cashierId,
+              cashierName: sale.cashierName,
+              paymentMethod: sale.paymentMethod,
+              ...item,
+              qty: netQty,
+              revenue,
+              cost,
+              profit: revenue - cost,
+            }
+          }),
       ),
     [filteredSales, filters.productId],
   )
+
+  // Same "returnedQty * unitPrice" formula as saleLines above, just aggregated at the sale
+  // level instead of the line level — for the Sales tab's per-invoice Returned/Net columns.
+  function saleReturnedAmount(sale: Sale) {
+    return sale.items.reduce((s, i) => s + i.returnedQty * i.unitPrice, 0)
+  }
+
+  // Real inventory valuation: each batch keeps the cost it was actually bought at, so a
+  // product's stock value is the sum of what's LEFT of every batch at THAT batch's own cost —
+  // not "total stock × today's latest cost", which is wrong the moment a price has ever
+  // changed while older-cost stock is still on the shelf (see Batch model — FIFO costing).
+  function productStockValue(productId: string) {
+    return batches.filter((b) => b.productId === productId).reduce((sum, b) => sum + b.remaining * b.cost, 0)
+  }
 
   const totalRevenue = saleLines.reduce((s, l) => s + l.revenue, 0)
   const totalCost = saleLines.reduce((s, l) => s + l.cost, 0)
@@ -105,7 +161,66 @@ export function ReportsPage() {
   const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount, 0)
 
   function handleExport() {
-    pushToast('info', 'Export started — the report will download as a CSV shortly.')
+    const suppliersInRange = purchases.filter(
+      (p) => p.date >= filters.from && p.date <= filters.to && (filters.supplierId === 'All' || p.supplierId === filters.supplierId),
+    )
+    const outstandingRows = suppliers.filter((s) => filters.supplierId === 'All' || s.id === filters.supplierId)
+
+    let headers: string[]
+    let rows: (string | number)[][]
+
+    switch (tab) {
+      case 'sales':
+        headers = ['Invoice No.', 'Date', 'Seller', 'Subtotal', 'Discount', 'Grand Total', 'Returned', 'Net Total', 'Payment Method', 'Printed']
+        rows = filteredSales.map((r) => [
+          r.invoiceNo,
+          r.date,
+          r.cashierName,
+          r.subtotal,
+          r.discount,
+          r.grandTotal,
+          saleReturnedAmount(r),
+          r.grandTotal - saleReturnedAmount(r),
+          r.paymentMethod,
+          r.printedAt ? 'Yes' : 'No',
+        ])
+        break
+      case 'products':
+        headers = ['Code', 'Product', 'Qty Sold', 'Revenue', 'Cost', 'Profit']
+        rows = groupProductSales(saleLines).map((r) => [r.code, r.name, r.qty, r.revenue, r.cost, r.profit])
+        break
+      case 'sellers':
+        headers = ['Seller', 'Transactions', 'Revenue', 'Cost', 'Profit']
+        rows = groupSellers(saleLines).map((r) => [r.name, r.invoices.size, r.revenue, r.cost, r.profit])
+        break
+      case 'suppliers':
+        headers = ['Invoice No.', 'Supplier', 'Total Purchase', 'Paid at Purchase', 'Due at Purchase']
+        rows = suppliersInRange.map((p) => [p.invoiceNo, getSupplier(p.supplierId)?.name ?? '—', p.totalAmount, p.paidAmount, p.totalAmount - p.paidAmount])
+        break
+      case 'outstanding':
+        headers = ['Supplier', 'Status', 'Outstanding Balance']
+        rows = outstandingRows.map((s) => [s.name, s.status, getOutstanding(s.id)])
+        break
+      case 'profit':
+        headers = ['Month', 'Revenue', 'COGS', 'Gross Profit', 'Expenses', 'Net Profit']
+        rows = groupProfit(saleLines, filteredExpenses).map((r) => [r.month, r.revenue, r.cost, r.revenue - r.cost, r.expenses, r.revenue - r.cost - r.expenses])
+        break
+      case 'expenses':
+        headers = ['Date', 'Category', 'Description', 'Amount']
+        rows = filteredExpenses.map((e) => [formatDate(e.date), e.category, e.description, e.amount])
+        break
+      case 'inventory':
+        headers = ['Code', 'Product', 'Current Stock', 'Avg. Cost / Unit', 'Stock Value']
+        rows = products.map((p) => {
+          const stock = getStock(p.id)
+          const value = productStockValue(p.id)
+          return [p.code, p.name, stock, stock > 0 ? value / stock : (getCurrentPrice(p.id)?.purchaseCost ?? 0), value]
+        })
+        break
+    }
+
+    downloadCsv(`${tab}-report_${filters.from}_to_${filters.to}.csv`, headers, rows)
+    pushToast('success', 'Report exported.')
   }
 
   return (
@@ -126,16 +241,7 @@ export function ReportsPage() {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <ReportFilterBar
-          filters={filters}
-          onChange={patchFilters}
-          show={{
-            product: tab === 'sales' || tab === 'products' || tab === 'profit',
-            seller: tab === 'sales' || tab === 'sellers' || tab === 'products',
-            supplier: tab === 'suppliers' || tab === 'outstanding',
-            paymentMethod: tab === 'sales',
-          }}
-        />
+        <ReportFilterBar filters={filters} onChange={patchFilters} show={shownFiltersFor(tab)} />
         {canExport && (
           <Button variant="secondary" onClick={handleExport}>
             <Download size={14} /> Export
@@ -144,7 +250,7 @@ export function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <SummaryTile label="Total Sales" value={formatCurrency(totalRevenue)} />
+        <SummaryTile label="Total Sales (Net of Returns)" value={formatCurrency(totalRevenue)} />
         <SummaryTile label="Total Cost (COGS)" value={formatCurrency(totalCost)} />
         <SummaryTile label="Gross Profit" value={formatCurrency(totalProfit)} tone="success" />
         <SummaryTile label="Expenses" value={formatCurrency(totalExpenses)} tone="danger" />
@@ -156,6 +262,7 @@ export function ReportsPage() {
           <ReportTable
             keyField={(r) => r.id}
             rows={filteredSales}
+            onRowClick={(r) => setViewingSale(r)}
             totals={[
               '',
               '',
@@ -163,6 +270,8 @@ export function ReportsPage() {
               formatCurrency(filteredSales.reduce((s, r) => s + r.subtotal, 0)),
               formatCurrency(filteredSales.reduce((s, r) => s + r.discount, 0)),
               formatCurrency(filteredSales.reduce((s, r) => s + r.grandTotal, 0)),
+              formatCurrency(filteredSales.reduce((s, r) => s + saleReturnedAmount(r), 0)),
+              formatCurrency(filteredSales.reduce((s, r) => s + (r.grandTotal - saleReturnedAmount(r)), 0)),
               '',
               '',
               '',
@@ -175,6 +284,21 @@ export function ReportsPage() {
               { key: 'subtotal', header: 'Subtotal', align: 'right', render: (r) => formatCurrency(r.subtotal) },
               { key: 'discount', header: 'Discount', align: 'right', render: (r) => formatCurrency(r.discount) },
               { key: 'total', header: 'Grand Total', align: 'right', render: (r) => <span className="font-semibold">{formatCurrency(r.grandTotal)}</span> },
+              {
+                key: 'returned',
+                header: 'Returned',
+                align: 'right',
+                render: (r) => {
+                  const amt = saleReturnedAmount(r)
+                  return amt > 0 ? <span className="text-danger">-{formatCurrency(amt)}</span> : <span className="text-ink-faint">—</span>
+                },
+              },
+              {
+                key: 'netTotal',
+                header: 'Net Total',
+                align: 'right',
+                render: (r) => <span className="font-bold text-ink">{formatCurrency(r.grandTotal - saleReturnedAmount(r))}</span>,
+              },
               { key: 'method', header: 'Payment', render: (r) => <span className="capitalize">{r.paymentMethod.replace('_', ' ')}</span> },
               {
                 key: 'printed',
@@ -195,7 +319,10 @@ export function ReportsPage() {
                 align: 'center',
                 render: (r) => (
                   <button
-                    onClick={() => setReprintSale(r)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setReprintSale(r)
+                    }}
                     className="flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[11px] font-medium text-ink-soft hover:bg-panel-alt"
                   >
                     <Printer size={12} /> {r.printedAt ? 'Reprint' : 'Print'}
@@ -212,7 +339,10 @@ export function ReportsPage() {
                   if (fullyReturned) return <span className="text-[11px] text-ink-faint">Fully returned</span>
                   return (
                     <button
-                      onClick={() => setReturnSale(r)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setReturnSale(r)
+                      }}
                       className="flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[11px] font-medium text-ink-soft hover:bg-panel-alt"
                     >
                       <Undo2 size={12} /> Return
@@ -243,10 +373,17 @@ export function ReportsPage() {
               { key: 'invoiceNo', header: 'Invoice No.', render: (p) => p.invoiceNo },
               { key: 'supplier', header: 'Supplier', render: (p) => getSupplier(p.supplierId)?.name ?? '—' },
               { key: 'total', header: 'Total Purchase', align: 'right', render: (p) => formatCurrency(p.totalAmount) },
-              { key: 'paid', header: 'Paid', align: 'right', render: (p) => formatCurrency(p.paidAmount) },
-              { key: 'remaining', header: 'Remaining', align: 'right', render: (p) => formatCurrency(p.totalAmount - p.paidAmount) },
+              { key: 'paid', header: 'Paid at Purchase', align: 'right', render: (p) => formatCurrency(p.paidAmount) },
+              { key: 'remaining', header: 'Due at Purchase', align: 'right', render: (p) => formatCurrency(p.totalAmount - p.paidAmount) },
             ]}
           />
+        )}
+        {tab === 'suppliers' && (
+          <p className="mt-2 text-[11.5px] text-ink-faint">
+            Paid/Due figures above are as recorded at the time of each purchase and don't include later standalone
+            supplier payments. See the <span className="font-medium text-ink-soft">Supplier Outstanding</span> tab
+            for each supplier's true current balance.
+          </p>
         )}
 
         {tab === 'outstanding' && (
@@ -290,13 +427,23 @@ export function ReportsPage() {
           <ReportTable
             keyField={(p) => p.id}
             rows={products}
-            totals={['', '', '', '', formatCurrency(products.reduce((s, p) => s + getStock(p.id) * (getCurrentPrice(p.id)?.purchaseCost ?? 0), 0))]}
+            totals={['', '', '', '', formatCurrency(products.reduce((s, p) => s + productStockValue(p.id), 0))]}
             columns={[
               { key: 'code', header: 'Code', render: (p) => p.code },
               { key: 'name', header: 'Product', render: (p) => p.name },
               { key: 'stock', header: 'Current Stock', align: 'right', render: (p) => formatNumber(getStock(p.id)) },
-              { key: 'cost', header: 'Unit Cost', align: 'right', render: (p) => formatCurrency(getCurrentPrice(p.id)?.purchaseCost ?? 0) },
-              { key: 'value', header: 'Stock Value', align: 'right', render: (p) => formatCurrency(getStock(p.id) * (getCurrentPrice(p.id)?.purchaseCost ?? 0)) },
+              {
+                key: 'cost',
+                header: 'Avg. Cost / Unit',
+                align: 'right',
+                render: (p) => {
+                  const stock = getStock(p.id)
+                  // Weighted average across whatever batches are actually left — not just the
+                  // latest purchase price, which older remaining stock may not reflect at all.
+                  return formatCurrency(stock > 0 ? productStockValue(p.id) / stock : (getCurrentPrice(p.id)?.purchaseCost ?? 0))
+                },
+              },
+              { key: 'value', header: 'Stock Value', align: 'right', render: (p) => formatCurrency(productStockValue(p.id)) },
             ]}
           />
         )}
@@ -304,6 +451,19 @@ export function ReportsPage() {
 
       <ReceiptModal sale={reprintSale} onClose={() => setReprintSale(null)} />
       <ReturnModal sale={returnSale} onClose={() => setReturnSale(null)} />
+      <SaleDetailModal
+        sale={viewingSale}
+        onClose={() => setViewingSale(null)}
+        canReturn={canReturn}
+        onPrint={(s) => {
+          setViewingSale(null)
+          setReprintSale(s)
+        }}
+        onReturn={(s) => {
+          setViewingSale(null)
+          setReturnSale(s)
+        }}
+      />
     </div>
   )
 }
@@ -324,19 +484,21 @@ interface SaleLine {
   profit: number
 }
 
+function groupProductSales(saleLines: SaleLine[]) {
+  const map = new Map<string, { productId: string; name: string; code: string; qty: number; revenue: number; cost: number; profit: number }>()
+  for (const l of saleLines) {
+    const existing = map.get(l.productId) ?? { productId: l.productId, name: l.name, code: l.code, qty: 0, revenue: 0, cost: 0, profit: 0 }
+    existing.qty += l.qty
+    existing.revenue += l.revenue
+    existing.cost += l.cost
+    existing.profit += l.profit
+    map.set(l.productId, existing)
+  }
+  return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue)
+}
+
 function ProductSalesTable({ saleLines }: { saleLines: SaleLine[] }) {
-  const grouped = useMemo(() => {
-    const map = new Map<string, { productId: string; name: string; code: string; qty: number; revenue: number; cost: number; profit: number }>()
-    for (const l of saleLines) {
-      const existing = map.get(l.productId) ?? { productId: l.productId, name: l.name, code: l.code, qty: 0, revenue: 0, cost: 0, profit: 0 }
-      existing.qty += l.qty
-      existing.revenue += l.revenue
-      existing.cost += l.cost
-      existing.profit += l.profit
-      map.set(l.productId, existing)
-    }
-    return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue)
-  }, [saleLines])
+  const grouped = useMemo(() => groupProductSales(saleLines), [saleLines])
 
   return (
     <ReportTable
@@ -355,19 +517,21 @@ function ProductSalesTable({ saleLines }: { saleLines: SaleLine[] }) {
   )
 }
 
+function groupSellers(saleLines: SaleLine[]) {
+  const map = new Map<string, { cashierId: string; name: string; invoices: Set<string>; revenue: number; cost: number; profit: number }>()
+  for (const l of saleLines) {
+    const existing = map.get(l.cashierId) ?? { cashierId: l.cashierId, name: l.cashierName, invoices: new Set<string>(), revenue: 0, cost: 0, profit: 0 }
+    existing.invoices.add(l.saleId)
+    existing.revenue += l.revenue
+    existing.cost += l.cost
+    existing.profit += l.profit
+    map.set(l.cashierId, existing)
+  }
+  return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue)
+}
+
 function SellerTable({ saleLines }: { saleLines: SaleLine[] }) {
-  const grouped = useMemo(() => {
-    const map = new Map<string, { cashierId: string; name: string; invoices: Set<string>; revenue: number; cost: number; profit: number }>()
-    for (const l of saleLines) {
-      const existing = map.get(l.cashierId) ?? { cashierId: l.cashierId, name: l.cashierName, invoices: new Set<string>(), revenue: 0, cost: 0, profit: 0 }
-      existing.invoices.add(l.saleId)
-      existing.revenue += l.revenue
-      existing.cost += l.cost
-      existing.profit += l.profit
-      map.set(l.cashierId, existing)
-    }
-    return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue)
-  }, [saleLines])
+  const grouped = useMemo(() => groupSellers(saleLines), [saleLines])
 
   return (
     <ReportTable
@@ -385,24 +549,26 @@ function SellerTable({ saleLines }: { saleLines: SaleLine[] }) {
   )
 }
 
+function groupProfit(saleLines: SaleLine[], expenses: { date: string; amount: number }[]) {
+  const map = new Map<string, { month: string; revenue: number; cost: number; expenses: number }>()
+  for (const l of saleLines) {
+    const month = l.date.slice(0, 7)
+    const existing = map.get(month) ?? { month, revenue: 0, cost: 0, expenses: 0 }
+    existing.revenue += l.revenue
+    existing.cost += l.cost
+    map.set(month, existing)
+  }
+  for (const e of expenses) {
+    const month = e.date.slice(0, 7)
+    const existing = map.get(month) ?? { month, revenue: 0, cost: 0, expenses: 0 }
+    existing.expenses += e.amount
+    map.set(month, existing)
+  }
+  return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month))
+}
+
 function ProfitTable({ saleLines, expenses }: { saleLines: SaleLine[]; expenses: { date: string; amount: number }[] }) {
-  const grouped = useMemo(() => {
-    const map = new Map<string, { month: string; revenue: number; cost: number; expenses: number }>()
-    for (const l of saleLines) {
-      const month = l.date.slice(0, 7)
-      const existing = map.get(month) ?? { month, revenue: 0, cost: 0, expenses: 0 }
-      existing.revenue += l.revenue
-      existing.cost += l.cost
-      map.set(month, existing)
-    }
-    for (const e of expenses) {
-      const month = e.date.slice(0, 7)
-      const existing = map.get(month) ?? { month, revenue: 0, cost: 0, expenses: 0 }
-      existing.expenses += e.amount
-      map.set(month, existing)
-    }
-    return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month))
-  }, [saleLines, expenses])
+  const grouped = useMemo(() => groupProfit(saleLines, expenses), [saleLines, expenses])
 
   return (
     <ReportTable

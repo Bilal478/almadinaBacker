@@ -188,8 +188,8 @@ export function ProductFormModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting) return
-    if (!form.name.trim() || !form.barcode.trim()) {
-      pushToast('error', 'Product name and barcode are required.')
+    if (!form.name.trim()) {
+      pushToast('error', 'Product name is required.')
       return
     }
 
@@ -286,9 +286,10 @@ export function ProductFormModal({
           </div>
         )}
         <TextField
-          label="Barcode"
+          label="Barcode (optional)"
           value={form.barcode}
           onChange={(v) => set('barcode', v)}
+          placeholder="Leave blank if this product has no barcode"
           autoFocus={!isEdit && !initialBarcode && !initialName}
         />
         {lookup === 'exists' && existingMatch && (
@@ -432,6 +433,7 @@ function TextField({
   type = 'text',
   span2,
   autoFocus,
+  placeholder,
 }: {
   label: string
   value: string
@@ -439,6 +441,7 @@ function TextField({
   type?: string
   span2?: boolean
   autoFocus?: boolean
+  placeholder?: string
 }) {
   return (
     <div className={span2 ? 'col-span-2' : undefined}>
@@ -448,6 +451,7 @@ function TextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoFocus={autoFocus}
+        placeholder={placeholder}
         className="w-full rounded border border-border-strong bg-panel px-2 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
       />
     </div>

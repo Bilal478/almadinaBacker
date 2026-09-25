@@ -7,7 +7,7 @@ interface ApiProduct {
   id: number
   name: string
   sku: string
-  barcode: string
+  barcode: string | null
   qr_code: string | null
   category_id: number | null
   category_name: string | null
@@ -52,7 +52,10 @@ function toProduct(p: ApiProduct): Product {
   return {
     id: String(p.id),
     code: p.sku,
-    barcode: p.barcode,
+    // Normalized to '' here so the rest of the app (search filters, the form, scan-match
+    // checks) can keep treating `barcode` as a plain string everywhere — "no barcode" is
+    // represented the same way the Add Product form already produces it.
+    barcode: p.barcode ?? '',
     qrCode: p.qr_code ?? undefined,
     name: p.name,
     category: p.category_name ?? '',

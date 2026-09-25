@@ -11,6 +11,16 @@ class StoreProductRequest extends FormRequest
         return true;
     }
 
+    /** An empty string from the form means "no barcode" — normalize it to null so it's
+     *  treated as absent (skips the unique check, matches how the DB column now allows
+     *  many NULLs) instead of colliding with every other barcode-less product. */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('barcode') === '') {
+            $this->merge(['barcode' => null]);
+        }
+    }
+
     public function rules(): array
     {
         $productId = $this->route('product')?->id;
@@ -19,7 +29,9 @@ class StoreProductRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             // Left blank on creation, the controller assigns one automatically.
             'sku' => ['sometimes', 'string', 'max:100', 'unique:products,sku,' . $productId],
-            'barcode' => ['required', 'string', 'max:100', 'unique:products,barcode,' . $productId],
+            // Not every product has a real printed barcode — a house-made item entered
+            // without a scanner simply won't be scannable, which is expected, not an error.
+            'barcode' => ['nullable', 'string', 'max:100', 'unique:products,barcode,' . $productId],
             'qr_code' => ['nullable', 'string', 'max:100'],
             'category_id' => ['nullable', 'exists:categories,id'],
             'unit_id' => ['required', 'exists:units,id'],

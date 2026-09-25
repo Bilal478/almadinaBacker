@@ -82,7 +82,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
           <InfoTile label="Purchase Cost" value={formatCurrency(currentPrice?.purchaseCost ?? 0)} />
           <InfoTile label="Selling Price" value={formatCurrency(currentPrice?.customerPrice ?? 0)} />
           <InfoTile label="Low Stock Alert" value={`${product.lowStockLevel} ${product.unit}`} />
-          <InfoTile label="Barcode" value={product.barcode} />
+          <InfoTile label="Barcode" value={product.barcode || 'No barcode'} />
           <InfoTile label="Expiry Tracking" value={product.expiryTracking ? 'Enabled' : 'Disabled'} />
           <InfoTile
             label="Status"

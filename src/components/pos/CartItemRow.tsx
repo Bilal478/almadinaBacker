@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import clsx from 'clsx'
 import { Minus, Plus, Trash2 } from 'lucide-react'
 import type { CartItem } from '@/types'
 import { useCartStore } from '@/store/cartStore'
-import { formatCurrency } from '@/lib/format'
+import { useUnitStore } from '@/store/unitStore'
+import { formatCurrency, formatQuantity } from '@/lib/format'
 
 interface CartItemRowProps {
   item: CartItem
@@ -13,8 +15,25 @@ interface CartItemRowProps {
 export function CartItemRow({ item, selected, onSelect }: CartItemRowProps) {
   const incQty = useCartStore((s) => s.incQty)
   const decQty = useCartStore((s) => s.decQty)
+  const setQty = useCartStore((s) => s.setQty)
   const removeItem = useCartStore((s) => s.removeItem)
   const setLineDiscount = useCartStore((s) => s.setLineDiscount)
+  const decimalAllowed = useUnitStore((s) => s.getUnit(item.unit)?.decimalAllowed ?? false)
+
+  // Lets the cashier type "0." without it snapping back to "0" mid-entry — only commits
+  // to the cart (and re-syncs from it) once they're done editing.
+  const [draft, setDraft] = useState<string | null>(null)
+  const qtyText = draft ?? String(item.qty)
+
+  function commitQty(text: string) {
+    const parsed = Number(text)
+    if (!text.trim() || Number.isNaN(parsed) || parsed <= 0) {
+      setDraft(null)
+      return
+    }
+    setQty(item.productId, decimalAllowed ? parsed : Math.round(parsed))
+    setDraft(null)
+  }
 
   const lineTotal = item.qty * item.unitPrice - item.discount
 
@@ -44,7 +63,19 @@ export function CartItemRow({ item, selected, onSelect }: CartItemRowProps) {
           >
             <Minus size={12} />
           </button>
-          <span className="w-7 text-center font-semibold tabular-nums text-ink">{item.qty}</span>
+          <input
+            type="number"
+            min={0}
+            step={decimalAllowed ? '0.01' : '1'}
+            value={qtyText}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={(e) => commitQty(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
+            className="w-12 rounded border border-border-strong bg-panel px-1 py-0.5 text-center text-[12px] font-semibold tabular-nums text-ink outline-none focus:border-brand-500"
+          />
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -54,6 +85,9 @@ export function CartItemRow({ item, selected, onSelect }: CartItemRowProps) {
           >
             <Plus size={12} />
           </button>
+          {item.qty > 0 && item.qty < 1 && (
+            <span className="text-[10px] text-ink-faint">({formatQuantity(item.qty, item.unit)})</span>
+          )}
         </div>
 
         <div className="flex items-center gap-1 text-[11px] text-ink-faint">

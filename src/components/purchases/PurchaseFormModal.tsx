@@ -218,6 +218,7 @@ export function PurchaseFormModal({ open, onClose }: { open: boolean; onClose: (
                 }}
                 type="number"
                 min={0}
+                step="any"
                 value={line.quantity}
                 onFocus={(e) => e.target.select()}
                 onChange={(e) => updateLine(idx, { quantity: e.target.value })}

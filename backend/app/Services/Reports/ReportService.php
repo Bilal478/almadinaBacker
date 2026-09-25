@@ -25,12 +25,16 @@ class ReportService
     {
         $sales = $this->filteredSales($filters)->get();
         $saleIds = $sales->pluck('id');
-        $returns = SaleReturn::whereIn('sale_id', $saleIds)->get();
+        $returns = SaleReturn::whereIn('sale_id', $saleIds)->with('items')->get();
 
         $grossSales = (float) $sales->sum('subtotal');
         $discount = (float) $sales->sum('discount');
         $returnsTotal = (float) $returns->sum('total_refund');
-        $cogs = (float) $sales->sum('total_cost');
+        // Returned stock goes back to inventory — its cost is no longer "cost of goods SOLD",
+        // so COGS (and therefore gross profit) must drop by the cost of the exact units that
+        // came back, not just have revenue reduced by their sale price.
+        $returnedCost = (float) $returns->flatMap->items->sum(fn ($item) => (float) $item->quantity * (float) $item->unit_cost);
+        $cogs = (float) $sales->sum('total_cost') - $returnedCost;
         $netSales = $grossSales - $discount - $returnsTotal;
 
         return [
@@ -44,20 +48,30 @@ class ReportService
                 'cogs' => round($cogs, 2),
                 'gross_profit' => round($netSales - $cogs, 2),
             ],
-            'rows' => $sales->map(fn (Sale $sale) => [
-                'id' => $sale->id,
-                'invoice_no' => $sale->invoice_no,
-                'sale_date' => $sale->sale_date->toDateString(),
-                'cashier' => $sale->cashier?->name,
-                'subtotal' => (float) $sale->subtotal,
-                'discount' => (float) $sale->discount,
-                'grand_total' => (float) $sale->grand_total,
-                'payment_method' => $sale->payments->first()?->payment_method,
-                'status' => $sale->status,
-            ])->values(),
+            'rows' => $sales->map(function (Sale $sale) use ($returns) {
+                $saleReturned = (float) $returns->where('sale_id', $sale->id)->sum('total_refund');
+                return [
+                    'id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'sale_date' => $sale->sale_date->toDateString(),
+                    'cashier' => $sale->cashier?->name,
+                    'subtotal' => (float) $sale->subtotal,
+                    'discount' => (float) $sale->discount,
+                    'grand_total' => (float) $sale->grand_total,
+                    'returned' => round($saleReturned, 2),
+                    'net_total' => round((float) $sale->grand_total - $saleReturned, 2),
+                    'payment_method' => $sale->payments->first()?->payment_method,
+                    'status' => $sale->status,
+                ];
+            })->values(),
         ];
     }
 
+    /**
+     * Net of returns throughout — sale_items.returned_quantity is a running total kept up to
+     * date by SaleReturnService every time a return is recorded, so quantity/revenue/cogs
+     * here are computed straight from it rather than joining sale_returns separately.
+     */
     public function productSalesReport(array $filters): array
     {
         $rows = $this->filteredSaleItems($filters)
@@ -65,10 +79,10 @@ class ReportService
                 'products.id as product_id',
                 'products.name as product_name',
                 'products.sku',
-                DB::raw('SUM(sale_items.quantity) as quantity'),
-                DB::raw('SUM(sale_items.line_total) as revenue'),
-                DB::raw('SUM(sale_items.total_cost) as cogs'),
-                DB::raw('SUM(sale_items.gross_profit) as gross_profit'),
+                DB::raw('SUM(sale_items.quantity - sale_items.returned_quantity) as quantity'),
+                DB::raw('SUM(sale_items.line_total - (sale_items.returned_quantity * sale_items.unit_price)) as revenue'),
+                DB::raw('SUM((sale_items.quantity - sale_items.returned_quantity) * sale_items.unit_cost) as cogs'),
+                DB::raw('SUM((sale_items.line_total - (sale_items.returned_quantity * sale_items.unit_price)) - ((sale_items.quantity - sale_items.returned_quantity) * sale_items.unit_cost)) as gross_profit'),
             )
             ->join('products', 'products.id', '=', 'sale_items.product_id')
             ->groupBy('products.id', 'products.name', 'products.sku')
@@ -78,21 +92,39 @@ class ReportService
         return ['rows' => $rows];
     }
 
+    /**
+     * Net of returns — a raw grouped-SQL join against sale_returns would double-count returns
+     * across sale_return_items rows, so (like salesReport/profitReport) this loops the sales
+     * in PHP and subtracts each sale's own return total instead.
+     */
     public function sellerReport(array $filters): array
     {
-        $rows = $this->filteredSales($filters)
-            ->select(
-                'users.id as seller_id',
-                'users.name as seller_name',
-                DB::raw('COUNT(DISTINCT sales.id) as invoice_count'),
-                DB::raw('SUM(sales.subtotal) as gross_sales'),
-                DB::raw('SUM(sales.discount) as discount'),
-                DB::raw('SUM(sales.grand_total) as net_sales'),
-            )
-            ->join('users', 'users.id', '=', 'sales.cashier_id')
-            ->groupBy('users.id', 'users.name')
-            ->orderByDesc('net_sales')
-            ->get();
+        $sales = $this->filteredSales($filters)->get();
+        $returns = SaleReturn::whereIn('sale_id', $sales->pluck('id'))->get()->groupBy('sale_id');
+
+        $bySeller = [];
+        foreach ($sales as $sale) {
+            $sellerId = $sale->cashier_id;
+            $bySeller[$sellerId] ??= [
+                'seller_id' => $sellerId,
+                'seller_name' => $sale->cashier?->name,
+                'invoice_count' => 0,
+                'gross_sales' => 0.0,
+                'discount' => 0.0,
+                'net_sales' => 0.0,
+            ];
+            $returned = (float) ($returns->get($sale->id) ?? collect())->sum('total_refund');
+
+            $bySeller[$sellerId]['invoice_count']++;
+            $bySeller[$sellerId]['gross_sales'] += (float) $sale->subtotal;
+            $bySeller[$sellerId]['discount'] += (float) $sale->discount;
+            $bySeller[$sellerId]['net_sales'] += (float) $sale->grand_total - $returned;
+        }
+
+        $rows = collect(array_values($bySeller))
+            ->map(fn ($row) => [...$row, 'gross_sales' => round($row['gross_sales'], 2), 'discount' => round($row['discount'], 2), 'net_sales' => round($row['net_sales'], 2)])
+            ->sortByDesc('net_sales')
+            ->values();
 
         return ['rows' => $rows];
     }
@@ -207,10 +239,16 @@ class ReportService
         ];
     }
 
-    /** Revenue - COGS = Gross Profit; Gross Profit - Expenses = Net Profit, broken down by month. */
+    /**
+     * Revenue - COGS = Gross Profit; Gross Profit - Expenses = Net Profit, broken down by
+     * month — net of returns. sale_return_items.unit_cost is the exact cost of the specific
+     * units that came back (copied from the sale item when the return was recorded), so COGS
+     * is reduced precisely rather than by a proportional guess.
+     */
     public function profitReport(array $filters): array
     {
         $sales = $this->filteredSales($filters)->get();
+        $returns = SaleReturn::whereIn('sale_id', $sales->pluck('id'))->with('items')->get()->groupBy('sale_id');
         $expenses = Expense::where('status', 'active')
             ->when($filters['date_from'] ?? null, fn ($q, $v) => $q->where('expense_date', '>=', $v))
             ->when($filters['date_to'] ?? null, fn ($q, $v) => $q->where('expense_date', '<=', $v))
@@ -220,8 +258,13 @@ class ReportService
         foreach ($sales as $sale) {
             $month = $sale->sale_date->format('Y-m');
             $byMonth[$month] ??= ['month' => $month, 'revenue' => 0, 'cogs' => 0, 'expenses' => 0];
-            $byMonth[$month]['revenue'] += (float) $sale->grand_total;
-            $byMonth[$month]['cogs'] += (float) $sale->total_cost;
+
+            $saleReturns = $returns->get($sale->id) ?? collect();
+            $returnedRevenue = (float) $saleReturns->sum('total_refund');
+            $returnedCost = (float) $saleReturns->flatMap->items->sum(fn ($item) => (float) $item->quantity * (float) $item->unit_cost);
+
+            $byMonth[$month]['revenue'] += (float) $sale->grand_total - $returnedRevenue;
+            $byMonth[$month]['cogs'] += (float) $sale->total_cost - $returnedCost;
         }
         foreach ($expenses as $expense) {
             $month = Carbon::parse($expense->expense_date)->format('Y-m');
@@ -239,13 +282,17 @@ class ReportService
             ];
         }, array_values($byMonth));
 
+        $totalRevenue = array_sum(array_column($rows, 'revenue'));
+        $totalCogs = array_sum(array_column($rows, 'cogs'));
+        $totalExpenses = array_sum(array_column($rows, 'expenses'));
+
         return [
             'summary' => [
-                'revenue' => round((float) $sales->sum('grand_total'), 2),
-                'cogs' => round((float) $sales->sum('total_cost'), 2),
-                'gross_profit' => round((float) $sales->sum('gross_profit'), 2),
-                'expenses' => round((float) $expenses->sum('amount'), 2),
-                'net_profit' => round((float) $sales->sum('gross_profit') - $expenses->sum('amount'), 2),
+                'revenue' => round($totalRevenue, 2),
+                'cogs' => round($totalCogs, 2),
+                'gross_profit' => round($totalRevenue - $totalCogs, 2),
+                'expenses' => round($totalExpenses, 2),
+                'net_profit' => round($totalRevenue - $totalCogs - $totalExpenses, 2),
             ],
             'rows' => $rows,
         ];

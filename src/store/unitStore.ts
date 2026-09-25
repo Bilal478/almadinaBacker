@@ -7,10 +7,11 @@ interface ApiUnit {
   name: string
   symbol: string
   status: UnitOfMeasure['status']
+  decimal_allowed: boolean
 }
 
 function normalize(u: ApiUnit): UnitOfMeasure {
-  return { id: String(u.id), code: u.symbol, name: u.name, status: u.status }
+  return { id: String(u.id), code: u.symbol, name: u.name, status: u.status, decimalAllowed: u.decimal_allowed }
 }
 
 interface UnitState {
@@ -18,8 +19,8 @@ interface UnitState {
   loading: boolean
   fetchAll: () => Promise<void>
   getUnit: (code: string) => UnitOfMeasure | undefined
-  addUnit: (unit: { code: string; name: string }) => Promise<UnitOfMeasure>
-  updateUnit: (id: string, patch: { code: string; name: string }) => Promise<UnitOfMeasure>
+  addUnit: (unit: { code: string; name: string; decimalAllowed?: boolean }) => Promise<UnitOfMeasure>
+  updateUnit: (id: string, patch: { code: string; name: string; decimalAllowed?: boolean }) => Promise<UnitOfMeasure>
   setUnitStatus: (id: string, status: UnitOfMeasure['status']) => Promise<UnitOfMeasure>
 }
 
@@ -36,13 +37,17 @@ export const useUnitStore = create<UnitState>((set, get) => ({
   getUnit: (code) => get().units.find((u) => u.code === code),
 
   addUnit: async (unit) => {
-    const created = normalize(await api.post<ApiUnit>('/units', { name: unit.name, symbol: unit.code }))
+    const created = normalize(
+      await api.post<ApiUnit>('/units', { name: unit.name, symbol: unit.code, decimal_allowed: unit.decimalAllowed ?? false }),
+    )
     set((state) => ({ units: [...state.units, created] }))
     return created
   },
 
   updateUnit: async (id, patch) => {
-    const updated = normalize(await api.put<ApiUnit>(`/units/${id}`, { name: patch.name, symbol: patch.code }))
+    const updated = normalize(
+      await api.put<ApiUnit>(`/units/${id}`, { name: patch.name, symbol: patch.code, decimal_allowed: patch.decimalAllowed ?? false }),
+    )
     set((state) => ({ units: state.units.map((u) => (u.id === id ? updated : u)) }))
     return updated
   },

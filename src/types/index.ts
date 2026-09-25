@@ -9,6 +9,10 @@ export interface UnitOfMeasure {
   code: string
   name: string
   status: 'active' | 'inactive'
+  /** Whether this unit can be sold/stocked in fractions — e.g. Kilogram allows 0.3, but
+   *  Pieces doesn't (you can't sell a third of a piece). Drives quantity input granularity
+   *  everywhere a product using this unit is bought or sold. */
+  decimalAllowed: boolean
 }
 
 export type ProductStatus = 'active' | 'inactive'

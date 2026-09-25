@@ -54,6 +54,33 @@ test('a duplicate SKU or barcode is rejected', function () {
     ])->assertStatus(422);
 });
 
+test('a product can be created with no barcode at all — not every house-made item has one', function () {
+    $product = Product::factory()->create();
+
+    $response = $this->actingAs($this->manager)->postJson('/api/products', [
+        'name' => 'Fresh Baguette', 'category_id' => $product->category_id, 'unit_id' => $product->unit_id,
+        'purchase_cost' => 20, 'customer_price' => 40, 'retailer_price' => 35,
+    ])->assertCreated();
+
+    expect($response->json('data.barcode'))->toBeNull();
+});
+
+test('multiple barcode-less products can coexist — an empty barcode never collides as a duplicate', function () {
+    $product = Product::factory()->create();
+
+    $this->actingAs($this->manager)->postJson('/api/products', [
+        'name' => 'First No-Barcode Item', 'category_id' => $product->category_id, 'unit_id' => $product->unit_id,
+        'purchase_cost' => 20, 'customer_price' => 40, 'retailer_price' => 35, 'barcode' => '',
+    ])->assertCreated();
+
+    $this->actingAs($this->manager)->postJson('/api/products', [
+        'name' => 'Second No-Barcode Item', 'category_id' => $product->category_id, 'unit_id' => $product->unit_id,
+        'purchase_cost' => 20, 'customer_price' => 40, 'retailer_price' => 35, 'barcode' => '',
+    ])->assertCreated();
+
+    expect(Product::whereNull('barcode')->count())->toBe(2);
+});
+
 test('a cashier without view_purchase_cost never receives purchase cost in the product payload', function () {
     $product = Product::factory()->create(['current_purchase_cost' => 42]);
     $cashier = userWithPermissions(['view_products']);

@@ -4,7 +4,7 @@ import { Button } from '@/components/common/Button'
 import { useSalesStore } from '@/store/salesStore'
 import { useUiStore } from '@/store/uiStore'
 import { ApiError } from '@/lib/api'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatQuantity } from '@/lib/format'
 import type { Sale } from '@/types'
 
 export function ReturnModal({ sale, onClose }: { sale: Sale | null; onClose: () => void }) {
@@ -99,10 +99,10 @@ export function ReturnModal({ sale, onClose }: { sale: Sale | null; onClose: () 
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium text-ink">{item.name}</div>
                       <div className="text-[11px] text-ink-faint">
-                        Sold {item.qty} {item.unit}
-                        {item.returnedQty > 0 && ` · already returned ${item.returnedQty}`}
+                        Sold {formatQuantity(item.qty, item.unit)}
+                        {item.returnedQty > 0 && ` · already returned ${formatQuantity(item.returnedQty, item.unit)}`}
                         {' · '}
-                        {formatCurrency(item.unitPrice)} each
+                        {formatCurrency(item.unitPrice)}/{item.unit}
                       </div>
                     </div>
                     <input

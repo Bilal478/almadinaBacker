@@ -29,15 +29,25 @@ export function DashboardPage() {
     fetchSuppliers()
   }, [fetchSales, fetchProducts, fetchSuppliers])
 
+  // Net of returns — a returned unit's revenue/cost is backed out using the same
+  // "returnedQty * unitPrice/unitCost" the backend actually applies for a return, so these
+  // figures always match what a Return actually did (see Reports.tsx for the same formula).
+  function netRevenue(s: (typeof sales)[number]) {
+    return s.grandTotal - s.items.reduce((sum, i) => sum + i.returnedQty * i.unitPrice, 0)
+  }
+  function netCost(s: (typeof sales)[number]) {
+    return s.items.reduce((sum, i) => sum + (i.qty - i.returnedQty) * i.unitCost, 0)
+  }
+
   const today = todayIso()
   const todaySales = sales.filter((s) => s.date === today)
-  const todayRevenue = todaySales.reduce((sum, s) => sum + s.grandTotal, 0)
+  const todayRevenue = todaySales.reduce((sum, s) => sum + netRevenue(s), 0)
   const todayCount = todaySales.length
 
   const monthPrefix = today.slice(0, 7)
   const monthSales = sales.filter((s) => s.date.startsWith(monthPrefix))
-  const monthRevenue = monthSales.reduce((sum, s) => sum + s.grandTotal, 0)
-  const monthCost = monthSales.reduce((sum, s) => sum + s.items.reduce((c, i) => c + i.qty * i.unitCost, 0), 0)
+  const monthRevenue = monthSales.reduce((sum, s) => sum + netRevenue(s), 0)
+  const monthCost = monthSales.reduce((sum, s) => sum + netCost(s), 0)
   const monthProfit = monthRevenue - monthCost
 
   const lowStockProducts = products.filter((p) => p.status === 'active' && getStock(p.id) <= p.lowStockLevel)
@@ -107,17 +117,21 @@ export function DashboardPage() {
             )}
           </div>
           <div className="divide-y divide-border">
-            {sales.slice(0, 6).map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                <div>
-                  <div className="font-medium text-ink">{s.invoiceNo}</div>
-                  <div className="text-[11px] text-ink-faint">
-                    {s.cashierName} &middot; {formatDate(s.date)}
+            {sales.slice(0, 6).map((s) => {
+              const returned = s.grandTotal - netRevenue(s)
+              return (
+                <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <div>
+                    <div className="font-medium text-ink">{s.invoiceNo}</div>
+                    <div className="text-[11px] text-ink-faint">
+                      {s.cashierName} &middot; {formatDate(s.date)}
+                      {returned > 0 && <span className="text-danger"> &middot; {formatCurrency(returned)} returned</span>}
+                    </div>
                   </div>
+                  <div className="font-bold text-ink">{formatCurrency(netRevenue(s))}</div>
                 </div>
-                <div className="font-bold text-ink">{formatCurrency(s.grandTotal)}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
