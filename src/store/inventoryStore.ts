@@ -43,6 +43,7 @@ interface InventoryState {
    *  ADJUSTMENT_IN needs no batchId (a fresh "found stock" batch is created); the other three
    *  types remove stock from a specific existing batch and require one. */
   adjustStock: (input: { productId: string; movementType: AdjustmentType; quantity: number; reason: string; batchId?: string }) => Promise<void>
+  updateExpiry: (batchId: string, expiryDate: string | null) => Promise<void>
 }
 
 export const useInventoryStore = create<InventoryState>((set) => ({
@@ -64,5 +65,10 @@ export const useInventoryStore = create<InventoryState>((set) => ({
       reason: input.reason,
     })
     await Promise.all([useInventoryStore.getState().fetchAll(), useProductStore.getState().fetchAll()])
+  },
+
+  updateExpiry: async (batchId, expiryDate) => {
+    await api.patch(`/inventory/batches/${batchId}/expiry`, { expiry_date: expiryDate })
+    await useInventoryStore.getState().fetchAll()
   },
 }))

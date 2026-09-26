@@ -96,6 +96,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inventory/expired', [InventoryController::class, 'expired']);
     Route::get('/inventory/expiring', [InventoryController::class, 'expiring']);
     Route::post('/inventory/adjustment', [InventoryController::class, 'adjust']);
+    Route::patch('/inventory/batches/{batch}/expiry', [InventoryController::class, 'updateExpiry']);
     Route::get('/inventory/{product}', [InventoryController::class, 'forProduct']);
 
     // ---------- Sales / POS ----------

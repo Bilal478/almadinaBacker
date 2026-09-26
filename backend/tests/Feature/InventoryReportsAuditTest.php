@@ -58,6 +58,42 @@ test('a manual stock adjustment (damage) reduces stock and is logged with a reas
     ]);
 });
 
+test('a batch expiry date can be corrected after the purchase was recorded', function () {
+    $product = Product::factory()->create();
+    $purchase = app(PurchaseService::class)->create([
+        'supplier_id' => Supplier::factory()->create()->id, 'purchase_date' => '2026-01-01', 'paid_amount' => 0,
+        'items' => [[
+            'product_id' => $product->id, 'quantity' => 10, 'purchase_cost' => 10, 'batch_number' => 'A',
+            'expiry_date' => '2026-06-01',
+        ]],
+    ]);
+    $batch = $purchase->batches->first();
+
+    $this->actingAs($this->manager)->patchJson("/api/inventory/batches/{$batch->id}/expiry", [
+        'expiry_date' => '2026-09-01',
+    ])->assertOk();
+
+    expect($batch->fresh()->expiry_date->toDateString())->toBe('2026-09-01');
+});
+
+test('a batch expiry date can be cleared back to none', function () {
+    $product = Product::factory()->create();
+    $purchase = app(PurchaseService::class)->create([
+        'supplier_id' => Supplier::factory()->create()->id, 'purchase_date' => '2026-01-01', 'paid_amount' => 0,
+        'items' => [[
+            'product_id' => $product->id, 'quantity' => 10, 'purchase_cost' => 10, 'batch_number' => 'A',
+            'expiry_date' => '2026-06-01',
+        ]],
+    ]);
+    $batch = $purchase->batches->first();
+
+    $this->actingAs($this->manager)->patchJson("/api/inventory/batches/{$batch->id}/expiry", [
+        'expiry_date' => null,
+    ])->assertOk();
+
+    expect($batch->fresh()->expiry_date)->toBeNull();
+});
+
 test('sensitive actions are captured in the audit log', function () {
     $product = Product::factory()->create();
     app(PurchaseService::class)->create([

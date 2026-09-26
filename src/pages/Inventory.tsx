@@ -9,6 +9,8 @@ import { AdjustmentModal } from '@/components/products/AdjustmentModal'
 import { useProductStore } from '@/store/productStore'
 import { useInventoryStore } from '@/store/inventoryStore'
 import { useAuthStore } from '@/store/authStore'
+import { useUiStore } from '@/store/uiStore'
+import { ApiError } from '@/lib/api'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 import type { Batch } from '@/types'
 
@@ -19,10 +21,20 @@ export function InventoryPage() {
   const fetchProducts = useProductStore((s) => s.fetchAll)
   const batches = useInventoryStore((s) => s.batches)
   const fetchBatches = useInventoryStore((s) => s.fetchAll)
+  const updateExpiry = useInventoryStore((s) => s.updateExpiry)
   const getStock = useProductStore((s) => s.getStock)
 
   const hasPermission = useAuthStore((s) => s.hasPermission)
   const canAdjust = hasPermission('manage_inventory')
+  const pushToast = useUiStore((s) => s.pushToast)
+
+  async function handleExpiryChange(batchId: string, value: string) {
+    try {
+      await updateExpiry(batchId, value || null)
+    } catch (e) {
+      pushToast('error', e instanceof ApiError ? e.message : 'Failed to update expiry date.')
+    }
+  }
 
   useEffect(() => {
     fetchProducts()
@@ -97,9 +109,20 @@ export function InventoryPage() {
       key: 'expiry',
       header: 'Expiry Date',
       render: (r) => {
-        if (!r.expiryDate) return <span className="text-ink-faint">—</span>
-        const soon = r.remaining > 0 && new Date(r.expiryDate).getTime() - Date.now() < 1000 * 60 * 60 * 24 * 10
-        return <span className={soon ? 'font-semibold text-danger' : 'text-ink'}>{formatDate(r.expiryDate)}</span>
+        const soon = !!r.expiryDate && r.remaining > 0 && new Date(r.expiryDate).getTime() - Date.now() < 1000 * 60 * 60 * 24 * 10
+        if (!canAdjust) {
+          return r.expiryDate ? <span className={soon ? 'font-semibold text-danger' : 'text-ink'}>{formatDate(r.expiryDate)}</span> : <span className="text-ink-faint">—</span>
+        }
+        return (
+          <input
+            type="date"
+            defaultValue={r.expiryDate ?? ''}
+            onBlur={(e) => {
+              if (e.target.value !== (r.expiryDate ?? '')) handleExpiryChange(r.id, e.target.value)
+            }}
+            className={`rounded border border-border-strong bg-panel px-1.5 py-0.5 text-[12.5px] outline-none focus:border-brand-500 ${soon ? 'font-semibold text-danger' : 'text-ink'}`}
+          />
+        )
       },
     },
     { key: 'cost', header: 'Purchase Cost', align: 'right', render: (r) => formatCurrency(r.cost) },

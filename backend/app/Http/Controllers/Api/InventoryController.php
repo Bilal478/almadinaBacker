@@ -66,6 +66,18 @@ class InventoryController extends Controller
         return $this->success($reports->expiringReport($request->integer('days', 30))['rows']);
     }
 
+    /** Corrects a batch's expiry date — set once when the purchase was recorded, but a
+     *  receiving clerk can mistype it or the supplier's label may only be readable later. */
+    public function updateExpiry(Request $request, InventoryBatch $batch)
+    {
+        $this->authorize('manage_inventory');
+        $request->validate(['expiry_date' => 'nullable|date']);
+
+        $batch->update(['expiry_date' => $request->expiry_date]);
+
+        return $this->success($batch->fresh(), 'Expiry date updated');
+    }
+
     /** Manual stock correction — the only screen where "manage_inventory" actually does something beyond viewing. */
     public function adjust(StockAdjustmentRequest $request, InventoryService $inventory)
     {
