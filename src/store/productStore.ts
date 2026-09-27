@@ -142,6 +142,7 @@ interface ProductState {
     openingExpiryDate?: string
   }) => Promise<Product>
   updateProduct: (id: string, patch: Partial<Product>) => Promise<void>
+  deleteProduct: (id: string) => Promise<void>
   setProductStatus: (id: string, status: ProductStatus) => Promise<void>
   addPriceHistoryEntry: (entry: {
     productId: string
@@ -235,6 +236,11 @@ export const useProductStore = create<ProductState>((set, get) => ({
       }),
     )
     set((state) => ({ products: state.products.map((p) => (p.id === id ? updated : p)) }))
+  },
+
+  deleteProduct: async (id) => {
+    await api.del(`/products/${id}`)
+    set((state) => ({ products: state.products.filter((p) => p.id !== id) }))
   },
 
   setProductStatus: async (id, status) => {

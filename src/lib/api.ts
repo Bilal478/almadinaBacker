@@ -56,8 +56,18 @@ export const api = {
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
 
-/** Unwraps a Laravel paginator response into a plain array — most of this app's lists are small enough to just show in full. */
+/** Unwraps a Laravel paginator response into a plain array, following every page — a single
+ *  page (however large `per_page` is set) would otherwise silently drop rows past the limit
+ *  once a list outgrows it, with no error to say so. */
 export async function getAll<T>(path: string): Promise<T[]> {
   const result = await api.get<Paginated<T> | T[]>(path)
-  return Array.isArray(result) ? result : result.data
+  if (Array.isArray(result)) return result
+
+  const rows = [...result.data]
+  const separator = path.includes('?') ? '&' : '?'
+  for (let page = result.current_page + 1; page <= result.last_page; page++) {
+    const next = await api.get<Paginated<T>>(`${path}${separator}page=${page}`)
+    rows.push(...next.data)
+  }
+  return rows
 }

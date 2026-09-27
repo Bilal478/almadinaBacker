@@ -197,6 +197,28 @@ class ProductController extends Controller
     }
 
     /**
+     * Only removable while it's never actually been transacted — once a purchase, sale, or
+     * any stock batch exists against it, deleting would either destroy real historical
+     * records or hit the DB's own foreign-key restriction. Deactivating (setStatus) is the
+     * right tool once a product has any history; this is only for cleaning up a mistake.
+     */
+    public function destroy(Product $product)
+    {
+        $this->authorize('manage_products');
+
+        if ($product->batches()->exists() || $product->saleItems()->exists() || $product->purchaseItems()->exists()) {
+            throw new BusinessException(
+                "\"{$product->name}\" has purchases, sales, or stock recorded against it and can't be deleted — deactivate it instead to hide it while keeping its history.",
+                'VALIDATION_ERROR',
+                409,
+            );
+        }
+
+        $product->delete();
+        return $this->success(null, 'Product deleted');
+    }
+
+    /**
      * Full batch history, not just active stock — the frontend's Batch/Stock History tab
      * is meant to show depleted batches too (e.g. Premium Biscuits' January batch, sold out
      * months ago), which "available stock" alone would hide.

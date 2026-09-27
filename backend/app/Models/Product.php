@@ -49,6 +49,16 @@ class Product extends Model
         return $this->hasMany(InventoryMovement::class);
     }
 
+    public function saleItems(): HasMany
+    {
+        return $this->hasMany(SaleItem::class);
+    }
+
+    public function purchaseItems(): HasMany
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
+
     public function currentStock(): float
     {
         return (float) $this->batches()->sum('remaining_quantity');

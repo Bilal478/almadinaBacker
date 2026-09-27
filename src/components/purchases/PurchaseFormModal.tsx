@@ -16,13 +16,14 @@ interface LineDraft {
   quantity: string
   unit: Unit
   cost: string
+  sellingPrice: string
   expiryDate: string
 }
 
 // Starts with no product selected — a pre-filled default would sit in the combobox as text a
 // scan could get appended onto instead of replacing (a receiving clerk scans into a blank line).
 function emptyLine(): LineDraft {
-  return { productId: '', quantity: '', unit: '', cost: '', expiryDate: '' }
+  return { productId: '', quantity: '', unit: '', cost: '', sellingPrice: '', expiryDate: '' }
 }
 
 // A scanned code is a long run of digits; a typed search phrase isn't — used to decide whether
@@ -37,6 +38,8 @@ export function PurchaseFormModal({ open, onClose }: { open: boolean; onClose: (
   const allSuppliers = useSupplierStore((s) => s.suppliers)
   const suppliers = useMemo(() => allSuppliers.filter((sup) => sup.status === 'active'), [allSuppliers])
   const addPurchase = useSupplierStore((s) => s.addPurchase)
+  const getCurrentPrice = useProductStore((s) => s.getCurrentPrice)
+  const addPriceHistoryEntry = useProductStore((s) => s.addPriceHistoryEntry)
   const pushToast = useUiStore((s) => s.pushToast)
 
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '')
@@ -127,7 +130,30 @@ export function PurchaseFormModal({ open, onClose }: { open: boolean; onClose: (
           expiryDate: l.expiryDate || undefined,
         })),
       })
+
+      // Selling price is optional per line — the purchase itself is already done at this
+      // point, so a failure here is reported as a separate warning rather than rolled back.
+      const priceUpdates = validLines.filter((l) => Number(l.sellingPrice) > 0)
+      const failedProducts: string[] = []
+      for (const line of priceUpdates) {
+        try {
+          await addPriceHistoryEntry({
+            productId: line.productId,
+            effectiveDate: date,
+            purchaseCost: Number(line.cost),
+            customerPrice: Number(line.sellingPrice),
+            retailerPrice: Number(line.sellingPrice),
+            note: 'Updated while recording a purchase',
+          })
+        } catch {
+          failedProducts.push(products.find((p) => p.id === line.productId)?.name ?? line.productId)
+        }
+      }
+
       pushToast('success', 'Purchase recorded and stock received into new batches.')
+      if (failedProducts.length > 0) {
+        pushToast('error', `Purchase saved, but selling price could not be updated for: ${failedProducts.join(', ')}.`)
+      }
       reset()
       onClose()
     } catch (e) {
@@ -192,16 +218,17 @@ export function PurchaseFormModal({ open, onClose }: { open: boolean; onClose: (
         </div>
 
         <div className="rounded border border-border">
-          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-2 border-b border-border bg-panel-alt px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-ink-faint">
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-2 border-b border-border bg-panel-alt px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-ink-faint">
             <div>Product</div>
             <div>Quantity</div>
             <div>Unit</div>
             <div>Purchase Cost</div>
+            <div>Selling Price</div>
             <div>Expiry</div>
             <div />
           </div>
           {lines.map((line, idx) => (
-            <div key={idx} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] items-center gap-2 border-b border-border px-2.5 py-1.5 last:border-b-0">
+            <div key={idx} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] items-center gap-2 border-b border-border px-2.5 py-1.5 last:border-b-0">
               <ProductLineCombobox
                 ref={(el) => {
                   comboRefs.current[idx] = el
@@ -251,6 +278,15 @@ export function PurchaseFormModal({ open, onClose }: { open: boolean; onClose: (
                   }
                 }}
                 className="rounded border border-border-strong bg-panel px-2 py-1 text-sm outline-none focus:border-brand-500"
+              />
+              <input
+                type="number"
+                min={0}
+                value={line.sellingPrice}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => updateLine(idx, { sellingPrice: e.target.value })}
+                placeholder={line.productId ? `Current: ${formatCurrency(getCurrentPrice(line.productId)?.customerPrice ?? 0)}` : 'Optional'}
+                className="rounded border border-border-strong bg-panel px-2 py-1 text-sm outline-none placeholder:text-[10.5px] placeholder:text-ink-faint focus:border-brand-500"
               />
               <input
                 type="date"

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, Pencil, Plus, PowerOff, Power } from 'lucide-react'
+import { Eye, Pencil, Plus, PowerOff, Power, Trash2, Package, Wallet } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '@/components/common/DataTable'
 import { SearchBar } from '@/components/common/SearchBar'
 import { FilterBar, FilterField, selectClass } from '@/components/common/FilterBar'
@@ -10,8 +10,10 @@ import { ProductFormModal } from '@/components/products/ProductFormModal'
 import { ProductDetailModal } from '@/components/products/ProductDetailModal'
 import { AdjustmentModal } from '@/components/products/AdjustmentModal'
 import { useProductStore } from '@/store/productStore'
+import { useInventoryStore } from '@/store/inventoryStore'
 import { useAuthStore } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
+import { ApiError } from '@/lib/api'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 import type { Product } from '@/types'
 
@@ -22,6 +24,9 @@ export function ProductsPage() {
   const getStock = useProductStore((s) => s.getStock)
   const getNearestExpiry = useProductStore((s) => s.getNearestExpiry)
   const setProductStatus = useProductStore((s) => s.setProductStatus)
+  const deleteProduct = useProductStore((s) => s.deleteProduct)
+  const batches = useInventoryStore((s) => s.batches)
+  const fetchInventory = useInventoryStore((s) => s.fetchAll)
   const hasPermission = useAuthStore((s) => s.hasPermission)
   const pushToast = useUiStore((s) => s.pushToast)
   const canManage = hasPermission('manage_products')
@@ -35,6 +40,7 @@ export function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null)
   const [toggleTarget, setToggleTarget] = useState<Product | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [adjustProductId, setAdjustProductId] = useState<string | null>(null)
 
   // This is a SPA — without this, navigating here shows whatever was loaded at login, not
@@ -42,7 +48,27 @@ export function ProductsPage() {
   // another counter). Every list page refetches its own data on mount for that reason.
   useEffect(() => {
     fetchProducts()
-  }, [fetchProducts])
+    fetchInventory()
+  }, [fetchProducts, fetchInventory])
+
+  // Real per-batch FIFO cost, same method as the Inventory Report — not "stock × latest cost",
+  // which overstates value the moment a price has changed while older-cost stock remains.
+  const totalStockValue = useMemo(
+    () => batches.reduce((sum, b) => sum + b.remaining * b.cost, 0),
+    [batches],
+  )
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    try {
+      await deleteProduct(deleteTarget.id)
+      pushToast('success', `${deleteTarget.name} deleted.`)
+    } catch (e) {
+      pushToast('error', e instanceof ApiError ? e.message : 'Failed to delete product.')
+    } finally {
+      setDeleteTarget(null)
+    }
+  }
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((p) => p.category)))], [products])
 
@@ -121,6 +147,9 @@ export function ProductsPage() {
               <IconButton title={p.status === 'active' ? 'Deactivate' : 'Activate'} onClick={() => setToggleTarget(p)}>
                 {p.status === 'active' ? <PowerOff size={14} /> : <Power size={14} />}
               </IconButton>
+              <IconButton title="Delete" onClick={() => setDeleteTarget(p)} danger>
+                <Trash2 size={14} />
+              </IconButton>
             </>
           )}
         </div>
@@ -130,6 +159,11 @@ export function ProductsPage() {
 
   return (
     <div className="flex h-full flex-col gap-3">
+      <div className={`grid grid-cols-2 gap-3 ${canViewCost ? 'md:grid-cols-2' : 'md:grid-cols-1'} max-w-xl`}>
+        <SummaryCard icon={Package} label="Total Products" value={formatNumber(products.length)} />
+        {canViewCost && <SummaryCard icon={Wallet} label="Total Stock Value" value={formatCurrency(totalStockValue)} />}
+      </div>
+
       <div className="flex items-center justify-between">
         <FilterBar>
           <FilterField label="Search">
@@ -196,18 +230,45 @@ export function ProductsPage() {
           setToggleTarget(null)
         }}
       />
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Product"
+        message={`Are you sure you want to permanently delete "${deleteTarget?.name}"? This can't be undone. Products with any purchase, sale, or stock history can't be deleted — deactivate them instead.`}
+        confirmLabel="Delete"
+        danger
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }
 
-function IconButton({ children, title, onClick }: { children: React.ReactNode; title: string; onClick: () => void }) {
+function IconButton({ children, title, onClick, danger }: { children: React.ReactNode; title: string; onClick: () => void; danger?: boolean }) {
   return (
     <button
       title={title}
       onClick={onClick}
-      className="flex h-7 w-7 items-center justify-center rounded border border-border-strong text-ink-soft hover:bg-panel-alt hover:text-ink"
+      className={
+        danger
+          ? 'flex h-7 w-7 items-center justify-center rounded border border-border-strong text-ink-soft hover:border-danger hover:bg-danger-bg hover:text-danger'
+          : 'flex h-7 w-7 items-center justify-center rounded border border-border-strong text-ink-soft hover:bg-panel-alt hover:text-ink'
+      }
     >
       {children}
     </button>
+  )
+}
+
+function SummaryCard({ icon: Icon, label, value }: { icon: typeof Package; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded border border-border bg-panel p-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded bg-brand-50 text-brand-700">
+        <Icon size={18} />
+      </div>
+      <div>
+        <div className="text-[18px] font-bold text-ink">{value}</div>
+        <div className="text-[11px] text-ink-faint">{label}</div>
+      </div>
+    </div>
   )
 }

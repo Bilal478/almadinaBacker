@@ -70,7 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products/barcode/{barcode}', [ProductController::class, 'findByBarcode']);
     Route::get('/products/qr/{qr}', [ProductController::class, 'findByQr']);
     Route::get('/products/sku/{sku}', [ProductController::class, 'findBySku']);
-    Route::apiResource('products', ProductController::class)->only(['index', 'show', 'store', 'update']);
+    Route::apiResource('products', ProductController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::patch('/products/{product}/status', [ProductController::class, 'setStatus']);
     Route::get('/products/{product}/stock', [ProductController::class, 'stock']);
     Route::get('/products/{product}/price-history', [ProductController::class, 'priceHistory']);
