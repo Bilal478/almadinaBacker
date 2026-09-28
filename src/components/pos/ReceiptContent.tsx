@@ -45,22 +45,33 @@ export function ReceiptContent({ sale, settings }: { sale: Sale; settings: Busin
         </div>
       </div>
 
-      <table className="w-full border-t border-dashed border-border-strong py-1.5" style={{ borderCollapse: 'collapse' }}>
+      {/* Fixed, guaranteed column widths + real left padding on every numeric column — a plain
+          auto-layout table with no padding shrinks each column to its exact content width
+          with ZERO gap between them, so "570.00" and "9,120.00" print as one run-together
+          string ("570.009,120.00") the instant a value is wider than usual. Fixed widths and
+          a real gap make that impossible regardless of how long the numbers get. */}
+      <table className="w-full border-t border-dashed border-border-strong py-1.5" style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '36%' }} />
+          <col style={{ width: '13%' }} />
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '29%' }} />
+        </colgroup>
         <thead>
           <tr className="border-b border-dashed border-border-strong text-[10.5px] font-semibold text-ink-faint">
-            <th className="py-1 text-left font-semibold">Item</th>
-            <th className="py-1 text-right font-semibold">Qty</th>
-            <th className="py-1 text-right font-semibold">Price</th>
-            <th className="py-1 text-right font-semibold">Ext Price</th>
+            <th className="py-1 pr-1 text-left font-semibold">Item</th>
+            <th className="py-1 pl-1.5 text-right font-semibold">Qty</th>
+            <th className="py-1 pl-1.5 text-right font-semibold">Price</th>
+            <th className="py-1 pl-1.5 text-right font-semibold">Ext Price</th>
           </tr>
         </thead>
         <tbody>
           {sale.items.map((item) => (
             <tr key={item.productId} className="align-top">
-              <td className="py-1 pr-1 font-semibold">{item.name}</td>
-              <td className="whitespace-nowrap py-1 text-right">{formatQuantity(item.qty, item.unit)}</td>
-              <td className="whitespace-nowrap py-1 text-right">{formatAmount(item.unitPrice)}</td>
-              <td className="whitespace-nowrap py-1 text-right font-semibold">
+              <td className="py-1 pr-1 font-semibold break-words">{item.name}</td>
+              <td className="whitespace-nowrap py-1 pl-1.5 text-right">{formatQuantity(item.qty, item.unit)}</td>
+              <td className="whitespace-nowrap py-1 pl-1.5 text-right">{formatAmount(item.unitPrice)}</td>
+              <td className="whitespace-nowrap py-1 pl-1.5 text-right font-semibold">
                 {formatAmount(item.total)}
                 {item.discount > 0 && <div className="text-[10px] font-normal text-ink-faint">-{formatAmount(item.discount)} disc</div>}
               </td>
