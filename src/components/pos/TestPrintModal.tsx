@@ -4,6 +4,8 @@ import { Button } from '@/components/common/Button'
 import { useSettingsStore } from '@/store/settingsStore'
 import { ReceiptContent } from '@/components/pos/ReceiptContent'
 import { useCurrentUser } from '@/store/authStore'
+import { printReceipt } from '@/lib/printReceipt'
+import { useUiStore } from '@/store/uiStore'
 import { Printer } from 'lucide-react'
 import type { Sale } from '@/types'
 
@@ -41,8 +43,18 @@ function buildTestSale(cashierName: string): Sale {
 
 export function TestPrintModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const settings = useSettingsStore((s) => s.settings)
+  const pushToast = useUiStore((s) => s.pushToast)
   const { user } = useCurrentUser()
   const sale = buildTestSale(user?.name ?? 'Test User')
+
+  async function handlePrint() {
+    const result = await printReceipt(sale, settings)
+    if (result.fallbackReason) {
+      pushToast('warning', `Direct printing failed (${result.fallbackReason}) — opened the regular print dialog instead.`)
+    } else if (result.method === 'direct') {
+      pushToast('success', 'Sent straight to the printer.')
+    }
+  }
 
   return (
     <>
@@ -54,7 +66,7 @@ export function TestPrintModal({ open, onClose }: { open: boolean; onClose: () =
         width="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => window.print()}>
+            <Button variant="secondary" onClick={handlePrint}>
               <Printer size={14} /> Print Test Receipt
             </Button>
             <Button variant="primary" onClick={onClose}>
