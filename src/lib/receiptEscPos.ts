@@ -2,7 +2,7 @@ import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder'
 import type { TableColumn } from '@point-of-sale/receipt-printer-encoder'
 import type { Sale } from '@/types'
 import type { BusinessSettings } from '@/store/settingsStore'
-import { formatAmount, formatCurrency, formatDateTime, formatQuantity } from '@/lib/format'
+import { formatAmount, formatCurrency, formatDateTime, formatQty } from '@/lib/format'
 
 /**
  * Builds the exact same receipt as ReceiptContent.tsx, but as real ESC/POS text/table commands
@@ -40,7 +40,7 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
   encoder.table(itemCols, [
     ['Item', 'Qty', 'Price', 'Ext Price'],
     { rule: true },
-    ...sale.items.map((item) => [item.name, formatQuantity(item.qty, item.unit), formatAmount(item.unitPrice), formatAmount(item.total)]),
+    ...sale.items.map((item) => [item.name, formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)]),
   ])
   encoder.newline()
 
