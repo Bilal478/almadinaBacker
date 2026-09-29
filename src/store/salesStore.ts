@@ -127,9 +127,11 @@ export const useSalesStore = create<SalesState>((set) => ({
           discount: i.discount,
         })),
         price_tier: input.priceTier,
-        // No separate order-level discount control exists in the cart UI — `input.discount`
-        // is just the sum of the line discounts above, already counted. Sending it too would
-        // double every discounted sale's total (the backend adds line + order discount).
+        // A genuinely separate whole-bill discount, distinct from the line discounts above —
+        // the backend adds them together. Do NOT set this to a value derived from the line
+        // discounts themselves (e.g. their sum) — that already burned us once (doubled every
+        // discounted sale's total, since the backend already counts line discounts on its own).
+        discount: input.discount,
         customer_name: input.customerName,
         payment_method: input.paymentMethod.toUpperCase(),
         amount_received: input.amountReceived,

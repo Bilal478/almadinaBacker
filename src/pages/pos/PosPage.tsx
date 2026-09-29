@@ -29,8 +29,8 @@ export function PosPage() {
   const priceTier = useCartStore((s) => s.priceTier)
   const paymentMethod = useCartStore((s) => s.paymentMethod)
   const amountReceived = useCartStore((s) => s.amountReceived)
+  const orderDiscount = useCartStore((s) => s.orderDiscount)
   const subtotal = useCartStore((s) => s.subtotal())
-  const totalDiscount = useCartStore((s) => s.totalDiscount())
   const grandTotal = useCartStore((s) => s.grandTotal())
   const holdSale = useCartStore((s) => s.holdSale)
   const clearCart = useCartStore((s) => s.clearCart)
@@ -65,7 +65,7 @@ export function PosPage() {
       const sale = await completeSaleAction({
         items,
         subtotal,
-        discount: totalDiscount,
+        discount: Number(orderDiscount) || 0,
         grandTotal,
         counter: user?.counter ?? 'Counter 1',
         cashierId: user?.id ?? 'unknown',

@@ -25,6 +25,8 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
   const customerName = useCartStore((s) => s.customerName)
   const setCustomerName = useCartStore((s) => s.setCustomerName)
   const heldSales = useCartStore((s) => s.heldSales)
+  const orderDiscount = useCartStore((s) => s.orderDiscount)
+  const setOrderDiscount = useCartStore((s) => s.setOrderDiscount)
   const subtotal = useCartStore((s) => s.subtotal())
   const totalDiscount = useCartStore((s) => s.totalDiscount())
   const grandTotal = useCartStore((s) => s.grandTotal())
@@ -86,8 +88,20 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
           <span className="tabular-nums">{formatCurrency(subtotal)}</span>
         </div>
         <div className="flex justify-between text-ink-soft">
-          <span>Discount</span>
+          <span>Line Discounts</span>
           <span className="tabular-nums">-{formatCurrency(totalDiscount)}</span>
+        </div>
+        <div className="flex items-center justify-between text-ink-soft">
+          <span>Bill Discount</span>
+          <input
+            type="number"
+            min={0}
+            value={orderDiscount}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => setOrderDiscount(e.target.value)}
+            placeholder="0"
+            className="w-24 rounded border border-border-strong bg-panel px-1.5 py-0.5 text-right text-[12.5px] tabular-nums outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+          />
         </div>
         <div className="flex justify-between border-t border-dashed border-border-strong pt-1 text-[16px] font-bold text-ink">
           <span>Grand Total</span>

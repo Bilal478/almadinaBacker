@@ -9,6 +9,7 @@ export interface HeldSale {
   items: CartItem[]
   customerName?: string
   priceTier: PriceTier
+  orderDiscount: string
 }
 
 interface CartState {
@@ -17,6 +18,9 @@ interface CartState {
   priceTier: PriceTier
   paymentMethod: PaymentMethod
   amountReceived: string
+  /** A whole-bill discount, on top of (not derived from) each line's own discount — kept as
+   *  raw text like amountReceived so the field can be edited freely mid-typing. */
+  orderDiscount: string
   heldSales: HeldSale[]
 
   addProduct: (product: Product) => void
@@ -25,6 +29,7 @@ interface CartState {
   setQty: (productId: string, qty: number) => void
   removeItem: (productId: string) => void
   setLineDiscount: (productId: string, discount: number) => void
+  setOrderDiscount: (value: string) => void
   removeLast: () => void
 
   setCustomerName: (name: string) => void
@@ -53,6 +58,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   priceTier: 'customer',
   paymentMethod: 'cash',
   amountReceived: '',
+  orderDiscount: '',
   heldSales: [],
 
   addProduct: (product) => {
@@ -112,6 +118,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     }))
   },
 
+  setOrderDiscount: (value) => set({ orderDiscount: value }),
+
   removeLast: () => {
     set((state) => ({ items: state.items.slice(0, -1) }))
   },
@@ -130,7 +138,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   setAmountReceived: (value) => set({ amountReceived: value }),
 
   holdSale: () => {
-    const { items, customerName, priceTier } = get()
+    const { items, customerName, priceTier, orderDiscount } = get()
     if (items.length === 0) return
     const held: HeldSale = {
       id: nextId('hold'),
@@ -138,8 +146,9 @@ export const useCartStore = create<CartState>((set, get) => ({
       items,
       customerName: customerName || undefined,
       priceTier,
+      orderDiscount,
     }
-    set((state) => ({ heldSales: [held, ...state.heldSales], items: [], customerName: '', amountReceived: '' }))
+    set((state) => ({ heldSales: [held, ...state.heldSales], items: [], customerName: '', amountReceived: '', orderDiscount: '' }))
   },
 
   resumeHeldSale: (id) => {
@@ -149,6 +158,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       items: held.items,
       customerName: held.customerName ?? '',
       priceTier: held.priceTier,
+      orderDiscount: held.orderDiscount,
       heldSales: state.heldSales.filter((h) => h.id !== id),
     }))
   },
@@ -157,9 +167,9 @@ export const useCartStore = create<CartState>((set, get) => ({
     set((state) => ({ heldSales: state.heldSales.filter((h) => h.id !== id) }))
   },
 
-  clearCart: () => set({ items: [], customerName: '', amountReceived: '' }),
+  clearCart: () => set({ items: [], customerName: '', amountReceived: '', orderDiscount: '' }),
 
   subtotal: () => get().items.reduce((s, i) => s + i.qty * i.unitPrice, 0),
   totalDiscount: () => get().items.reduce((s, i) => s + i.discount, 0),
-  grandTotal: () => get().subtotal() - get().totalDiscount(),
+  grandTotal: () => Math.max(0, get().subtotal() - get().totalDiscount() - (Number(get().orderDiscount) || 0)),
 }))
