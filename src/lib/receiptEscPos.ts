@@ -48,9 +48,8 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
   encoder.bold(false)
   encoder.rule()
   // Every item gets the same shape regardless of name length: the name on its own full-width
-  // line, its figures on the line below, then a blank line before the next product.
-  sale.items.forEach((item, i) => {
-    if (i > 0) encoder.newline()
+  // line, its figures on the line below.
+  sale.items.forEach((item) => {
     encoder.line(item.name)
     encoder.table(itemCols, [['', formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)]])
   })
