@@ -7,6 +7,8 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useSalesStore } from '@/store/salesStore'
 import { ReceiptContent } from '@/components/pos/ReceiptContent'
 import { printReceipt } from '@/lib/printReceipt'
+import { warmUpQz } from '@/lib/qzTray'
+import { usePrinterSettingsStore } from '@/store/printerSettingsStore'
 import { useUiStore } from '@/store/uiStore'
 import { Printer, CheckCircle2 } from 'lucide-react'
 
@@ -30,6 +32,13 @@ export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: ()
     window.addEventListener('afterprint', handleAfterPrint)
     return () => window.removeEventListener('afterprint', handleAfterPrint)
   }, [sale, markPrinted])
+
+  // Re-check the QZ Tray connection the moment the receipt appears (it may have dropped since
+  // app start), so it's ready by the time the cashier clicks Print.
+  useEffect(() => {
+    const { enabled, printerName } = usePrinterSettingsStore.getState()
+    if (sale && enabled && printerName) warmUpQz()
+  }, [sale])
 
   const printed = justPrinted || !!sale?.printedAt
 

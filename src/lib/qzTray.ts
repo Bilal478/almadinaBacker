@@ -21,6 +21,13 @@ export async function connectQz(): Promise<void> {
   return connecting
 }
 
+/** Opens the QZ Tray connection in the background so the first receipt doesn't pay the
+ *  multi-second connect cost while the cashier waits. Failures are ignored here — printing
+ *  itself reconnects and falls back to the browser dialog if QZ Tray is unreachable. */
+export function warmUpQz(): void {
+  connectQz().catch(() => {})
+}
+
 export function isQzConnected(): boolean {
   return qz.websocket.isActive()
 }

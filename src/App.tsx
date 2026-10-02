@@ -5,6 +5,8 @@ import { AppBootstrap } from '@/components/layout/AppBootstrap'
 import { RequireAuth } from '@/components/layout/RequireAuth'
 import { RequirePermission } from '@/components/layout/RequirePermission'
 import { useAuthStore } from '@/store/authStore'
+import { usePrinterSettingsStore } from '@/store/printerSettingsStore'
+import { warmUpQz } from '@/lib/qzTray'
 import { LoginPage } from '@/pages/Login'
 import { DashboardPage } from '@/pages/Dashboard'
 import { PosPage } from '@/pages/pos/PosPage'
@@ -25,10 +27,15 @@ import { SettingsPage } from '@/pages/Settings'
 export default function App() {
   const init = useAuthStore((s) => s.init)
   const status = useAuthStore((s) => s.status)
+  const directPrinting = usePrinterSettingsStore((s) => s.enabled && !!s.printerName)
 
   useEffect(() => {
     init()
   }, [init])
+
+  useEffect(() => {
+    if (directPrinting) warmUpQz()
+  }, [directPrinting])
 
   if (status === 'idle' || status === 'loading') {
     return <div className="flex h-screen w-screen items-center justify-center bg-app-bg text-sm text-ink-faint">Loading…</div>
