@@ -1,6 +1,6 @@
 import type { Sale } from '@/types'
 import type { BusinessSettings } from '@/store/settingsStore'
-import { formatAmount, formatCurrency, formatDateTime, formatQuantity } from '@/lib/format'
+import { formatAmount, formatCurrency, formatDateTime, formatQty } from '@/lib/format'
 
 /**
  * The actual receipt body — rendered twice by ReceiptModal: once inside the on-screen preview
@@ -69,7 +69,7 @@ export function ReceiptContent({ sale, settings }: { sale: Sale; settings: Busin
           {sale.items.map((item) => (
             <tr key={item.productId} className="align-top">
               <td className="py-1 pr-1 font-semibold break-words">{item.name}</td>
-              <td className="whitespace-nowrap py-1 pl-1.5 text-right">{formatQuantity(item.qty, item.unit)}</td>
+              <td className="whitespace-nowrap py-1 pl-1.5 text-right">{formatQty(item.qty)}</td>
               <td className="whitespace-nowrap py-1 pl-1.5 text-right">{formatAmount(item.unitPrice)}</td>
               <td className="whitespace-nowrap py-1 pl-1.5 text-right font-semibold">
                 {formatAmount(item.total)}

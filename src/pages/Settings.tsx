@@ -5,6 +5,7 @@ import { useSettingsStore, type BusinessSettings } from '@/store/settingsStore'
 import { useUiStore } from '@/store/uiStore'
 import { ApiError } from '@/lib/api'
 import { TestPrintModal } from '@/components/pos/TestPrintModal'
+import { PrinterSettingsSection } from '@/components/settings/PrinterSettingsSection'
 
 const EMPTY: BusinessSettings = {
   storeName: '',
@@ -94,6 +95,8 @@ export function SettingsPage() {
           {saving ? 'Saving…' : 'Save Settings'}
         </Button>
       </div>
+
+      <PrinterSettingsSection />
 
       <TestPrintModal open={testPrintOpen} onClose={() => setTestPrintOpen(false)} />
     </div>

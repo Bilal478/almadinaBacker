@@ -44,6 +44,14 @@ export function formatQuantity(qty: number, unitSymbol: string): string {
   return `${formatNumber(qty)} ${unitSymbol}`
 }
 
+/** The bare number only, no unit suffix — for the receipt's Qty column, which is a narrow
+ *  fixed-width slot on both the HTML print and the raw ESC/POS thermal path: appending a unit
+ *  ("12 pcs") is exactly wide enough to overflow that column and break every column after it
+ *  out of alignment on real print output. */
+export function formatQty(qty: number): string {
+  return formatNumber(qty)
+}
+
 export function formatDate(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })

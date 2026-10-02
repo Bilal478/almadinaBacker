@@ -6,11 +6,14 @@ import type { Sale } from '@/types'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSalesStore } from '@/store/salesStore'
 import { ReceiptContent } from '@/components/pos/ReceiptContent'
+import { printReceipt } from '@/lib/printReceipt'
+import { useUiStore } from '@/store/uiStore'
 import { Printer, CheckCircle2 } from 'lucide-react'
 
 export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: () => void }) {
   const settings = useSettingsStore((s) => s.settings)
   const markPrinted = useSalesStore((s) => s.markPrinted)
+  const pushToast = useUiStore((s) => s.pushToast)
   const [justPrinted, setJustPrinted] = useState(false)
 
   // The browser gives no "print actually succeeded" signal — `afterprint` fires whether the
@@ -30,6 +33,20 @@ export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: ()
 
   const printed = justPrinted || !!sale?.printedAt
 
+  async function handlePrint() {
+    if (!sale) return
+    const result = await printReceipt(sale, settings)
+    if (result.fallbackReason) {
+      pushToast('warning', `Direct printing failed (${result.fallbackReason}) — opened the regular print dialog instead.`)
+    }
+    // 'browser' still relies on the `afterprint` listener above — window.print()'s dialog is
+    // still open/pending at this point, so there's nothing to confirm yet.
+    if (result.method === 'direct') {
+      setJustPrinted(true)
+      markPrinted(sale.id).catch(() => {})
+    }
+  }
+
   return (
     <>
       <Modal
@@ -45,7 +62,7 @@ export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: ()
                 <CheckCircle2 size={14} /> Printed
               </span>
             )}
-            <Button variant="secondary" onClick={() => window.print()}>
+            <Button variant="secondary" onClick={handlePrint}>
               <Printer size={14} /> {printed ? 'Print Again' : 'Print'}
             </Button>
             <Button variant="primary" onClick={onClose}>
