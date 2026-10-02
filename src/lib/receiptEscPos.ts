@@ -5,6 +5,13 @@ import type { BusinessSettings } from '@/store/settingsStore'
 import { formatAmount, formatCurrency, formatDateTime, formatQty } from '@/lib/format'
 
 /**
+ * Lines fed after the last printed line before cutting. Thermal printers cut several lines
+ * below the print head, so too little feed slices through the footer (the bottom half then
+ * shows up at the top of the next receipt).
+ */
+const FEED_BEFORE_CUT = 5
+
+/**
  * Builds the exact same receipt as ReceiptContent.tsx, but as real ESC/POS text/table commands
  * for direct (QZ Tray) printing instead of an HTML page. The printer draws these with its own
  * built-in font at native resolution — solid black, no antialiasing for it to dither into gray,
@@ -22,42 +29,46 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
   if (settings?.address) encoder.line(settings.address)
   if (settings?.phone) encoder.line(`Call ${settings.phone}`)
   if (settings?.taxId) encoder.line(`Tax ID: ${settings.taxId}`)
-  encoder.align('left').newline()
+  encoder.align('left').rule()
 
-  const labelCols = twoColumns(columns, 0.35)
-  encoder.table(labelCols, [
-    ['Invoice', sale.invoiceNo],
-    ['Date', formatDateTime(sale.createdAt)],
+  // Short fixed label column with the value right after it, one line each — keeps the block
+  // compact instead of pushing values to the far right edge.
+  const infoCols: TableColumn[] = [{ width: 10 }, { width: columns - 10 }]
+  encoder.table(infoCols, [
+    ['Invoice:', sale.invoiceNo],
+    ['Date:', formatDateTime(sale.createdAt)],
+    ['Bill To:', sale.customerName || 'Walk-in Customer'],
+    ['Cashier:', sale.cashierName],
   ])
-  encoder.newline()
-  encoder.table(labelCols, [
-    ['Bill To', sale.customerName || 'Walk-in Customer'],
-    ['Cashier', sale.cashierName],
-  ])
-  encoder.newline()
+  encoder.rule()
 
   const itemCols = itemColumns(columns)
-  encoder.table(itemCols, [
-    ['Item', 'Qty', 'Price', 'Ext Price'],
-    { rule: true },
-    ...sale.items.map((item) => [item.name, formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)]),
-  ])
-  encoder.newline()
+  encoder.bold(true)
+  encoder.table(itemCols, [['Item', 'Qty', 'Price', 'Ext Price']])
+  encoder.bold(false)
+  encoder.rule()
+  encoder.table(
+    itemCols,
+    sale.items.map((item) => [item.name, formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)]),
+  )
+  encoder.rule()
 
-  const totalCols = twoColumns(columns, 0.6)
-  const totalRows: (string[] | { rule: true })[] = [['Subtotal', formatCurrency(sale.subtotal)]]
+  const totalCols = twoColumns(columns, 0.55)
+  const totalRows: string[][] = [['Subtotal', formatCurrency(sale.subtotal)]]
   if (sale.discount > 0) totalRows.push(['Discount', `-${formatCurrency(sale.discount)}`])
   totalRows.push(['Tax (0%)', `+ ${formatCurrency(0)}`])
   encoder.table(totalCols, totalRows)
+  encoder.rule({ style: 'double' })
   encoder.bold(true)
   encoder.table(totalCols, [['RECEIPT TOTAL', formatCurrency(sale.grandTotal)]])
   encoder.bold(false)
+  encoder.rule({ style: 'double' })
 
   if (settings?.receiptFooter) {
     encoder.newline().align('center').line(settings.receiptFooter)
   }
 
-  encoder.newline(3).cut()
+  encoder.newline(FEED_BEFORE_CUT).cut()
 
   return encoder.encode()
 }
@@ -67,9 +78,14 @@ function twoColumns(columns: number, firstShare: number): TableColumn[] {
   return [{ width: first }, { width: columns - first, align: 'right' }]
 }
 
+/** Numeric columns get fixed widths that fit their values (plus a 1-char gap on the left so
+ *  adjacent figures never touch); the item name takes the rest, so names wrap less often. */
 function itemColumns(columns: number): TableColumn[] {
-  const item = Math.floor(columns * 0.38)
-  const qty = Math.floor(columns * 0.14)
-  const price = Math.floor(columns * 0.22)
-  return [{ width: item }, { width: qty, align: 'right' }, { width: price, align: 'right' }, { width: columns - item - qty - price, align: 'right' }]
+  const narrow = columns < 40
+  const qty = 3
+  const price = narrow ? 8 : 9
+  const amount = narrow ? 9 : 10
+  const item = columns - qty - price - amount - 3
+  const num = (width: number): TableColumn => ({ width, align: 'right', marginLeft: 1 })
+  return [{ width: item }, num(qty), num(price), num(amount)]
 }
