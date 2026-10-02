@@ -9,7 +9,7 @@ import { formatAmount, formatCurrency, formatDateTime, formatQty } from '@/lib/f
  * below the print head, so too little feed slices through the footer (the bottom half then
  * shows up at the top of the next receipt).
  */
-const FEED_BEFORE_CUT = 5
+const FEED_BEFORE_CUT = 6
 
 /**
  * Builds the exact same receipt as ReceiptContent.tsx, but as real ESC/POS text/table commands
@@ -47,10 +47,18 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
   encoder.table(itemCols, [['Item', 'Qty', 'Price', 'Ext Price']])
   encoder.bold(false)
   encoder.rule()
-  encoder.table(
-    itemCols,
-    sale.items.map((item) => [item.name, formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)]),
-  )
+  const nameWidth = itemCols[0].width as number
+  for (const item of sale.items) {
+    const figures = [formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)]
+    if (item.name.length <= nameWidth) {
+      encoder.table(itemCols, [[item.name, ...figures]])
+    } else {
+      // A name wrapped inside the narrow Item column runs into the next item's name and reads
+      // as a jumble — give it its own full-width line with the figures on the line below.
+      encoder.line(item.name)
+      encoder.table(itemCols, [['', ...figures]])
+    }
+  }
   encoder.rule()
 
   const totalCols = twoColumns(columns, 0.55)
