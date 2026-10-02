@@ -1,5 +1,6 @@
 import { FilterBar, FilterField, selectClass } from '@/components/common/FilterBar'
 import { DateRangePicker } from '@/components/common/DateRangePicker'
+import { ProductSearchSelect } from '@/components/common/ProductSearchSelect'
 import { useProductStore } from '@/store/productStore'
 import { useSupplierStore } from '@/store/supplierStore'
 import { useUserStore } from '@/store/userStore'
@@ -34,14 +35,14 @@ export function ReportFilterBar({ filters, onChange, show = {} }: ReportFilterBa
       </FilterField>
       {show.product && (
         <FilterField label="Product">
-          <select value={filters.productId} onChange={(e) => onChange({ productId: e.target.value })} className={selectClass}>
-            <option value="All">All Products</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <ProductSearchSelect
+            products={products}
+            value={filters.productId}
+            onChange={(productId) => onChange({ productId })}
+            allOption={{ value: 'All', label: 'All Products' }}
+            placeholder="All Products"
+            className="w-56"
+          />
         </FilterField>
       )}
       {show.seller && (

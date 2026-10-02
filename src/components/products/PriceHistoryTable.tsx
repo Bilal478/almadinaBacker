@@ -16,6 +16,7 @@ export function PriceHistoryTable({ productId }: { productId: string }) {
         {
           key: 'effectiveDate',
           header: 'Effective Date',
+          sortValue: (e) => e.effectiveDate,
           render: (e) => (
             <div className="flex items-center gap-1.5">
               {formatDate(e.effectiveDate)}
@@ -25,10 +26,10 @@ export function PriceHistoryTable({ productId }: { productId: string }) {
             </div>
           ),
         },
-        { key: 'purchaseCost', header: 'Purchase Cost', align: 'right', render: (e) => formatCurrency(e.purchaseCost) },
-        { key: 'customerPrice', header: 'Selling Price', align: 'right', render: (e) => formatCurrency(e.customerPrice) },
-        { key: 'changedBy', header: 'Changed By', render: (e) => e.changedBy },
-        { key: 'note', header: 'Note', render: (e) => <span className="text-ink-faint">{e.note ?? '—'}</span> },
+        { key: 'purchaseCost', header: 'Purchase Cost', align: 'right', sortValue: (e) => e.purchaseCost, render: (e) => formatCurrency(e.purchaseCost) },
+        { key: 'customerPrice', header: 'Selling Price', align: 'right', sortValue: (e) => e.customerPrice, render: (e) => formatCurrency(e.customerPrice) },
+        { key: 'changedBy', header: 'Changed By', sortValue: (e) => e.changedBy, render: (e) => e.changedBy },
+        { key: 'note', header: 'Note', sortValue: (e) => e.note ?? null, render: (e) => <span className="text-ink-faint">{e.note ?? '—'}</span> },
       ]}
     />
   )

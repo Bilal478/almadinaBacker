@@ -44,22 +44,23 @@ export function PurchasesPage() {
   }, [purchases, query, supplierId, status])
 
   const columns: DataTableColumn<Purchase>[] = [
-    { key: 'invoiceNo', header: 'Invoice No.', render: (p) => <span className="font-semibold text-ink">{p.invoiceNo}</span> },
-    { key: 'supplier', header: 'Supplier', render: (p) => getSupplier(p.supplierId)?.name ?? '—' },
-    { key: 'date', header: 'Date', render: (p) => formatDate(p.date) },
-    { key: 'items', header: 'Items', align: 'right', render: (p) => p.items.length },
-    { key: 'total', header: 'Total Purchase', align: 'right', render: (p) => formatCurrency(p.totalAmount) },
-    { key: 'paid', header: 'Paid Amount', align: 'right', render: (p) => formatCurrency(p.paidAmount) },
+    { key: 'invoiceNo', header: 'Invoice No.', sortValue: (p) => p.invoiceNo, render: (p) => <span className="font-semibold text-ink">{p.invoiceNo}</span> },
+    { key: 'supplier', header: 'Supplier', sortValue: (p) => getSupplier(p.supplierId)?.name ?? '', render: (p) => getSupplier(p.supplierId)?.name ?? '—' },
+    { key: 'date', header: 'Date', sortValue: (p) => p.date, render: (p) => formatDate(p.date) },
+    { key: 'items', header: 'Items', align: 'right', sortValue: (p) => p.items.length, render: (p) => p.items.length },
+    { key: 'total', header: 'Total Purchase', align: 'right', sortValue: (p) => p.totalAmount, render: (p) => formatCurrency(p.totalAmount) },
+    { key: 'paid', header: 'Paid Amount', align: 'right', sortValue: (p) => p.paidAmount, render: (p) => formatCurrency(p.paidAmount) },
     {
       key: 'remaining',
       header: 'Remaining',
       align: 'right',
+      sortValue: (p) => p.totalAmount - p.paidAmount,
       render: (p) => {
         const remaining = p.totalAmount - p.paidAmount
         return <span className={remaining > 0 ? 'font-bold text-danger' : 'text-ink-faint'}>{formatCurrency(remaining)}</span>
       },
     },
-    { key: 'status', header: 'Status', render: (p) => <StatusBadge tone={STATUS_TONE[p.status]}>{p.status}</StatusBadge> },
+    { key: 'status', header: 'Status', sortValue: (p) => p.status, render: (p) => <StatusBadge tone={STATUS_TONE[p.status]}>{p.status}</StatusBadge> },
     {
       key: 'actions',
       header: 'Actions',

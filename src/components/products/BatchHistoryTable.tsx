@@ -16,16 +16,17 @@ export function BatchHistoryTable({ productId }: { productId: string }) {
       rows={batches}
       emptyMessage="No purchase batches recorded yet."
       columns={[
-        { key: 'batchNo', header: 'Batch No.', render: (b) => <span className="font-semibold text-ink">{b.batchNo}</span> },
-        { key: 'supplier', header: 'Supplier', render: (b) => b.supplierName },
-        { key: 'purchaseDate', header: 'Purchase Date', render: (b) => formatDate(b.purchaseDate) },
-        { key: 'expiry', header: 'Expiry', render: (b) => (b.expiryDate ? formatDate(b.expiryDate) : '—') },
-        { key: 'cost', header: 'Cost / Unit', align: 'right', render: (b) => formatCurrency(b.cost) },
-        { key: 'quantity', header: 'Purchased Qty', align: 'right', render: (b) => formatNumber(b.quantity) },
+        { key: 'batchNo', header: 'Batch No.', sortValue: (b) => b.batchNo, render: (b) => <span className="font-semibold text-ink">{b.batchNo}</span> },
+        { key: 'supplier', header: 'Supplier', sortValue: (b) => b.supplierName, render: (b) => b.supplierName },
+        { key: 'purchaseDate', header: 'Purchase Date', sortValue: (b) => b.purchaseDate, render: (b) => formatDate(b.purchaseDate) },
+        { key: 'expiry', header: 'Expiry', sortValue: (b) => b.expiryDate ?? null, render: (b) => (b.expiryDate ? formatDate(b.expiryDate) : '—') },
+        { key: 'cost', header: 'Cost / Unit', align: 'right', sortValue: (b) => b.cost, render: (b) => formatCurrency(b.cost) },
+        { key: 'quantity', header: 'Purchased Qty', align: 'right', sortValue: (b) => b.quantity, render: (b) => formatNumber(b.quantity) },
         {
           key: 'remaining',
           header: 'Remaining',
           align: 'right',
+          sortValue: (b) => b.remaining,
           render: (b) => (
             <div className="flex items-center justify-end gap-1.5">
               <span className="font-semibold">{formatNumber(b.remaining)}</span>

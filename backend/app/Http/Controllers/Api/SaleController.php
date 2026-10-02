@@ -32,7 +32,10 @@ class SaleController extends Controller
             $query->where('status', $request->status);
         }
 
-        $sales = $query->latest('sale_date')->paginate($request->integer('per_page', 500));
+        // Sorted by invoice number (which is itself assigned in strict creation order), latest
+        // first — a plain date sort leaves same-day invoices in whatever order MySQL happens
+        // to return them, with no guaranteed tiebreaker.
+        $sales = $query->orderByDesc('invoice_no')->paginate($request->integer('per_page', 500));
         return $this->success(SaleResource::collection($sales));
     }
 

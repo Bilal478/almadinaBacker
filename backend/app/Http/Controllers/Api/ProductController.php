@@ -10,6 +10,7 @@ use App\Http\Resources\ProductResource;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\Inventory\InventoryService;
+use App\Services\Products\BarcodeGeneratorService;
 use App\Services\Products\BarcodeLookupService;
 use App\Services\Products\ProductPriceService;
 use Illuminate\Http\Request;
@@ -31,7 +32,10 @@ class ProductController extends Controller
             $query->where('status', $request->status);
         }
 
-        return $this->success(ProductResource::collection($query->orderBy('name')->paginate($request->integer('per_page', 500))));
+        // Latest-created first — product ID (the DB's own auto-increment, not the human-facing
+        // SKU) is the only reliable "most recently added" ordering once SKUs span multiple
+        // category prefixes (BAK-004 doesn't sort near SNK-004 the way creation order would).
+        return $this->success(ProductResource::collection($query->orderByDesc('id')->paginate($request->integer('per_page', 500))));
     }
 
     /** Shared by the Products screen search box and the POS counter search — same data, two entry points. */
@@ -74,6 +78,29 @@ class ProductController extends Controller
             throw new BusinessException("No active product with that QR code.", 'PRODUCT_NOT_FOUND', 404);
         }
         return $this->success(new ProductResource($product));
+    }
+
+    /**
+     * Mints a new in-house barcode for a product that doesn't have one yet, to be printed onto
+     * a blank sticker and stuck on the item. Refuses if the product already has a barcode —
+     * generating one is only ever meant to fill a gap, never to silently replace a real
+     * manufacturer barcode that's already on file.
+     */
+    public function generateBarcode(Product $product, BarcodeGeneratorService $generator)
+    {
+        $this->authorize('manage_products');
+
+        if (!empty($product->barcode)) {
+            throw new BusinessException(
+                "\"{$product->name}\" already has a barcode. Clear it on the product's edit form first if you really want to replace it.",
+                'VALIDATION_ERROR',
+                409,
+            );
+        }
+
+        $product->update(['barcode' => $generator->generate()]);
+
+        return $this->success(new ProductResource($product->load(self::WITH)), 'Barcode generated');
     }
 
     /**

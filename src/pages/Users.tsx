@@ -34,11 +34,11 @@ export function UsersPage() {
   }, [users, query])
 
   const columns: DataTableColumn<User>[] = [
-    { key: 'name', header: 'Name', render: (u) => <span className="font-semibold text-ink">{u.name}</span> },
-    { key: 'username', header: 'Username', render: (u) => u.username },
-    { key: 'role', header: 'Role', render: (u) => roles.find((r) => r.id === u.roleId)?.name ?? '—' },
-    { key: 'counter', header: 'Counter', render: (u) => u.counter ?? <span className="text-ink-faint">—</span> },
-    { key: 'status', header: 'Status', render: (u) => <StatusBadge tone={u.status === 'active' ? 'success' : 'neutral'}>{u.status}</StatusBadge> },
+    { key: 'name', header: 'Name', sortValue: (u) => u.name, render: (u) => <span className="font-semibold text-ink">{u.name}</span> },
+    { key: 'username', header: 'Username', sortValue: (u) => u.username, render: (u) => u.username },
+    { key: 'role', header: 'Role', sortValue: (u) => roles.find((r) => r.id === u.roleId)?.name ?? '', render: (u) => roles.find((r) => r.id === u.roleId)?.name ?? '—' },
+    { key: 'counter', header: 'Counter', sortValue: (u) => u.counter ?? null, render: (u) => u.counter ?? <span className="text-ink-faint">—</span> },
+    { key: 'status', header: 'Status', sortValue: (u) => u.status, render: (u) => <StatusBadge tone={u.status === 'active' ? 'success' : 'neutral'}>{u.status}</StatusBadge> },
     {
       key: 'actions',
       header: 'Actions',

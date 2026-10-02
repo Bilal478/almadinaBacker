@@ -75,16 +75,23 @@ export function UnitsPage() {
   }
 
   const columns: DataTableColumn<UnitOfMeasure>[] = [
-    { key: 'code', header: 'Code', render: (u) => <span className="font-semibold text-ink">{u.code}</span> },
-    { key: 'name', header: 'Unit Name', render: (u) => u.name },
+    { key: 'code', header: 'Code', sortValue: (u) => u.code, render: (u) => <span className="font-semibold text-ink">{u.code}</span> },
+    { key: 'name', header: 'Unit Name', sortValue: (u) => u.name, render: (u) => u.name },
     {
       key: 'decimal',
       header: 'Fractional Qty',
       align: 'center',
+      sortValue: (u) => (u.decimalAllowed ? 1 : 0),
       render: (u) => (u.decimalAllowed ? <span className="text-success">Yes (e.g. 0.5)</span> : <span className="text-ink-faint">Whole numbers only</span>),
     },
-    { key: 'count', header: 'Products Using It', align: 'right', render: (u) => products.filter((p) => p.unit === u.code).length },
-    { key: 'status', header: 'Status', render: (u) => <StatusBadge tone={u.status === 'active' ? 'success' : 'neutral'}>{u.status}</StatusBadge> },
+    {
+      key: 'count',
+      header: 'Products Using It',
+      align: 'right',
+      sortValue: (u) => products.filter((p) => p.unit === u.code).length,
+      render: (u) => products.filter((p) => p.unit === u.code).length,
+    },
+    { key: 'status', header: 'Status', sortValue: (u) => u.status, render: (u) => <StatusBadge tone={u.status === 'active' ? 'success' : 'neutral'}>{u.status}</StatusBadge> },
     {
       key: 'actions',
       header: 'Actions',

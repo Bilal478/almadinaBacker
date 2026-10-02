@@ -71,10 +71,16 @@ export function SupplierTypesPage() {
   }
 
   const columns: DataTableColumn<SupplierType>[] = [
-    { key: 'name', header: 'Supplier Type', render: (t) => <span className="font-semibold text-ink">{t.name}</span> },
-    { key: 'description', header: 'Description', render: (t) => <span className="text-ink-soft">{t.description ?? '—'}</span> },
-    { key: 'count', header: 'Suppliers', align: 'right', render: (t) => suppliers.filter((s) => s.supplierTypeId === t.id).length },
-    { key: 'status', header: 'Status', render: (t) => <StatusBadge tone={t.status === 'active' ? 'success' : 'neutral'}>{t.status}</StatusBadge> },
+    { key: 'name', header: 'Supplier Type', sortValue: (t) => t.name, render: (t) => <span className="font-semibold text-ink">{t.name}</span> },
+    { key: 'description', header: 'Description', sortValue: (t) => t.description ?? null, render: (t) => <span className="text-ink-soft">{t.description ?? '—'}</span> },
+    {
+      key: 'count',
+      header: 'Suppliers',
+      align: 'right',
+      sortValue: (t) => suppliers.filter((s) => s.supplierTypeId === t.id).length,
+      render: (t) => suppliers.filter((s) => s.supplierTypeId === t.id).length,
+    },
+    { key: 'status', header: 'Status', sortValue: (t) => t.status, render: (t) => <StatusBadge tone={t.status === 'active' ? 'success' : 'neutral'}>{t.status}</StatusBadge> },
     {
       key: 'actions',
       header: 'Actions',

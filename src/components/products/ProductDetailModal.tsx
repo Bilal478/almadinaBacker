@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { Barcode as BarcodeIcon, Printer } from 'lucide-react'
 import { Modal } from '@/components/common/Modal'
 import { Button } from '@/components/common/Button'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { PriceHistoryTable } from '@/components/products/PriceHistoryTable'
 import { BatchHistoryTable } from '@/components/products/BatchHistoryTable'
+import { BarcodeLabelModal } from '@/components/products/BarcodeLabelModal'
 import { useProductStore } from '@/store/productStore'
 import { useUiStore } from '@/store/uiStore'
+import { ApiError } from '@/lib/api'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import type { Product } from '@/types'
 import clsx from 'clsx'
@@ -19,9 +22,17 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
   const [cost, setCost] = useState('')
   const [sellingPrice, setSellingPrice] = useState('')
 
+  const [generatingBarcode, setGeneratingBarcode] = useState(false)
+  const [printingBarcodeFor, setPrintingBarcodeFor] = useState<Product | null>(null)
+
   const currentPrice = useProductStore(useShallow((s) => (product ? s.getCurrentPrice(product.id) : undefined)))
   const stock = useProductStore((s) => (product ? s.getStock(product.id) : 0))
+  // The `product` prop is a snapshot captured by the caller when the modal opened — read the
+  // live copy from the store for the barcode specifically, so generating one updates this
+  // tile immediately without the caller needing to refresh its own state.
+  const storeProduct = useProductStore(useShallow((s) => (product ? s.getProduct(product.id) : undefined)))
   const addPriceHistoryEntry = useProductStore((s) => s.addPriceHistoryEntry)
+  const generateBarcode = useProductStore((s) => s.generateBarcode)
   const fetchPriceHistory = useProductStore((s) => s.fetchPriceHistory)
   const fetchBatches = useProductStore((s) => s.fetchBatches)
   const pushToast = useUiStore((s) => s.pushToast)
@@ -33,6 +44,21 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
   }, [product, fetchPriceHistory, fetchBatches])
 
   if (!product) return null
+  const liveProduct = storeProduct ?? product
+
+  async function handleGenerateBarcode() {
+    if (!product || generatingBarcode) return
+    setGeneratingBarcode(true)
+    try {
+      const updated = await generateBarcode(product.id)
+      pushToast('success', 'Barcode generated.')
+      setPrintingBarcodeFor(updated)
+    } catch (e) {
+      pushToast('error', e instanceof ApiError ? e.message : 'Failed to generate barcode.')
+    } finally {
+      setGeneratingBarcode(false)
+    }
+  }
 
   function resetPriceForm() {
     setCost('')
@@ -60,6 +86,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
   }
 
   return (
+    <>
     <Modal open={!!product} title={product.name} subtitle={`${product.code} · ${product.category}`} onClose={onClose} width="lg">
       <div className="mb-3 flex gap-1 border-b border-border">
         {(['overview', 'price', 'batches'] as Tab[]).map((t) => (
@@ -82,7 +109,31 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
           <InfoTile label="Purchase Cost" value={formatCurrency(currentPrice?.purchaseCost ?? 0)} />
           <InfoTile label="Selling Price" value={formatCurrency(currentPrice?.customerPrice ?? 0)} />
           <InfoTile label="Low Stock Alert" value={`${product.lowStockLevel} ${product.unit}`} />
-          <InfoTile label="Barcode" value={product.barcode || 'No barcode'} />
+          <InfoTile
+            label="Barcode"
+            value={
+              liveProduct.barcode ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate">{liveProduct.barcode}</span>
+                  <button
+                    title="Print barcode label"
+                    onClick={() => setPrintingBarcodeFor(liveProduct)}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border-strong text-ink-faint hover:bg-panel-alt hover:text-ink"
+                  >
+                    <Printer size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleGenerateBarcode}
+                  disabled={generatingBarcode}
+                  className="flex items-center gap-1 text-[12px] font-semibold text-brand-700 hover:underline disabled:opacity-50"
+                >
+                  <BarcodeIcon size={13} /> {generatingBarcode ? 'Generating…' : 'Generate Barcode'}
+                </button>
+              )
+            }
+          />
           <InfoTile label="Expiry Tracking" value={product.expiryTracking ? 'Enabled' : 'Disabled'} />
           <InfoTile
             label="Status"
@@ -129,6 +180,8 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
         </div>
       )}
     </Modal>
+    <BarcodeLabelModal product={printingBarcodeFor} onClose={() => setPrintingBarcodeFor(null)} />
+    </>
   )
 }
 

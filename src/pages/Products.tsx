@@ -83,21 +83,23 @@ export function ProductsPage() {
   }, [products, query, category, status])
 
   const columns: DataTableColumn<Product>[] = [
-    { key: 'code', header: 'Product Code', render: (p) => <span className="font-medium text-ink">{p.code}</span> },
+    { key: 'code', header: 'Product Code', sortValue: (p) => p.code, render: (p) => <span className="font-medium text-ink">{p.code}</span> },
     {
       key: 'name',
       header: 'Product Name',
+      sortValue: (p) => p.name,
       render: (p) => (
         <button onClick={() => setViewingProduct(p)} className="text-left font-semibold text-ink hover:text-brand-700 hover:underline">
           {p.name}
         </button>
       ),
     },
-    { key: 'unit', header: 'Unit', render: (p) => p.unit },
+    { key: 'unit', header: 'Unit', sortValue: (p) => p.unit, render: (p) => p.unit },
     {
       key: 'stock',
       header: 'Current Stock',
       align: 'right',
+      sortValue: (p) => getStock(p.id),
       render: (p) => {
         const stock = getStock(p.id)
         const low = stock <= p.lowStockLevel
@@ -105,12 +107,27 @@ export function ProductsPage() {
       },
     },
     ...(canViewCost
-      ? [{ key: 'cost', header: 'Purchase Cost', align: 'right' as const, render: (p: Product) => formatCurrency(getCurrentPrice(p.id)?.purchaseCost ?? 0) }]
+      ? [
+          {
+            key: 'cost',
+            header: 'Purchase Cost',
+            align: 'right' as const,
+            sortValue: (p: Product) => getCurrentPrice(p.id)?.purchaseCost ?? 0,
+            render: (p: Product) => formatCurrency(getCurrentPrice(p.id)?.purchaseCost ?? 0),
+          },
+        ]
       : []),
-    { key: 'price', header: 'Price', align: 'right', render: (p) => formatCurrency(getCurrentPrice(p.id)?.customerPrice ?? 0) },
+    {
+      key: 'price',
+      header: 'Price',
+      align: 'right',
+      sortValue: (p) => getCurrentPrice(p.id)?.customerPrice ?? 0,
+      render: (p) => formatCurrency(getCurrentPrice(p.id)?.customerPrice ?? 0),
+    },
     {
       key: 'expiry',
       header: 'Expiry',
+      sortValue: (p) => getNearestExpiry(p.id) ?? null,
       render: (p) => {
         const expiry = getNearestExpiry(p.id)
         if (!expiry) return <span className="text-ink-faint">—</span>
@@ -118,10 +135,11 @@ export function ProductsPage() {
         return <span className={soon ? 'font-semibold text-danger' : 'text-ink'}>{formatDate(expiry)}</span>
       },
     },
-    { key: 'lowStockLevel', header: 'Low Stock Level', align: 'right', render: (p) => formatNumber(p.lowStockLevel) },
+    { key: 'lowStockLevel', header: 'Low Stock Level', align: 'right', sortValue: (p) => p.lowStockLevel, render: (p) => formatNumber(p.lowStockLevel) },
     {
       key: 'status',
       header: 'Status',
+      sortValue: (p) => p.status,
       render: (p) => <StatusBadge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</StatusBadge>,
     },
     {

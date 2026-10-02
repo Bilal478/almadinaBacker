@@ -144,6 +144,8 @@ interface ProductState {
   updateProduct: (id: string, patch: Partial<Product>) => Promise<void>
   deleteProduct: (id: string) => Promise<void>
   setProductStatus: (id: string, status: ProductStatus) => Promise<void>
+  /** Mints an in-house barcode for a product that doesn't have one yet (see BarcodeGeneratorService). */
+  generateBarcode: (id: string) => Promise<Product>
   addPriceHistoryEntry: (entry: {
     productId: string
     purchaseCost: number
@@ -216,7 +218,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
         opening_expiry_date: product.openingExpiryDate,
       }),
     )
-    set((state) => ({ products: [...state.products, created] }))
+    // Prepended, not appended — the backend now lists products newest-first (by id), and a
+    // freshly created product should show up at the top without waiting for a refetch.
+    set((state) => ({ products: [created, ...state.products] }))
     return created
   },
 
@@ -246,6 +250,12 @@ export const useProductStore = create<ProductState>((set, get) => ({
   setProductStatus: async (id, status) => {
     const updated = toProduct(await api.patch<ApiProduct>(`/products/${id}/status`, { status }))
     set((state) => ({ products: state.products.map((p) => (p.id === id ? updated : p)) }))
+  },
+
+  generateBarcode: async (id) => {
+    const updated = toProduct(await api.post<ApiProduct>(`/products/${id}/generate-barcode`))
+    set((state) => ({ products: state.products.map((p) => (p.id === id ? updated : p)) }))
+    return updated
   },
 
   addPriceHistoryEntry: async (entry) => {

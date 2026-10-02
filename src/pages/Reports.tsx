@@ -278,16 +278,17 @@ export function ReportsPage() {
               '',
             ]}
             columns={[
-              { key: 'invoiceNo', header: 'Invoice No.', render: (r) => r.invoiceNo },
-              { key: 'date', header: 'Date', render: (r) => formatDate(r.date) },
-              { key: 'seller', header: 'Seller', render: (r) => r.cashierName },
-              { key: 'subtotal', header: 'Subtotal', align: 'right', render: (r) => formatCurrency(r.subtotal) },
-              { key: 'discount', header: 'Discount', align: 'right', render: (r) => formatCurrency(r.discount) },
-              { key: 'total', header: 'Grand Total', align: 'right', render: (r) => <span className="font-semibold">{formatCurrency(r.grandTotal)}</span> },
+              { key: 'invoiceNo', header: 'Invoice No.', sortValue: (r) => r.invoiceNo, render: (r) => r.invoiceNo },
+              { key: 'date', header: 'Date', sortValue: (r) => r.date, render: (r) => formatDate(r.date) },
+              { key: 'seller', header: 'Seller', sortValue: (r) => r.cashierName, render: (r) => r.cashierName },
+              { key: 'subtotal', header: 'Subtotal', align: 'right', sortValue: (r) => r.subtotal, render: (r) => formatCurrency(r.subtotal) },
+              { key: 'discount', header: 'Discount', align: 'right', sortValue: (r) => r.discount, render: (r) => formatCurrency(r.discount) },
+              { key: 'total', header: 'Grand Total', align: 'right', sortValue: (r) => r.grandTotal, render: (r) => <span className="font-semibold">{formatCurrency(r.grandTotal)}</span> },
               {
                 key: 'returned',
                 header: 'Returned',
                 align: 'right',
+                sortValue: (r) => saleReturnedAmount(r),
                 render: (r) => {
                   const amt = saleReturnedAmount(r)
                   return amt > 0 ? <span className="text-danger">-{formatCurrency(amt)}</span> : <span className="text-ink-faint">—</span>
@@ -297,13 +298,15 @@ export function ReportsPage() {
                 key: 'netTotal',
                 header: 'Net Total',
                 align: 'right',
+                sortValue: (r) => r.grandTotal - saleReturnedAmount(r),
                 render: (r) => <span className="font-bold text-ink">{formatCurrency(r.grandTotal - saleReturnedAmount(r))}</span>,
               },
-              { key: 'method', header: 'Payment', render: (r) => <span className="capitalize">{r.paymentMethod.replace('_', ' ')}</span> },
+              { key: 'method', header: 'Payment', sortValue: (r) => r.paymentMethod, render: (r) => <span className="capitalize">{r.paymentMethod.replace('_', ' ')}</span> },
               {
                 key: 'printed',
                 header: 'Printed',
                 align: 'center',
+                sortValue: (r) => (r.printedAt ? 1 : 0),
                 render: (r) =>
                   r.printedAt ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success">
@@ -370,11 +373,11 @@ export function ReportsPage() {
               '',
             ]}
             columns={[
-              { key: 'invoiceNo', header: 'Invoice No.', render: (p) => p.invoiceNo },
-              { key: 'supplier', header: 'Supplier', render: (p) => getSupplier(p.supplierId)?.name ?? '—' },
-              { key: 'total', header: 'Total Purchase', align: 'right', render: (p) => formatCurrency(p.totalAmount) },
-              { key: 'paid', header: 'Paid at Purchase', align: 'right', render: (p) => formatCurrency(p.paidAmount) },
-              { key: 'remaining', header: 'Due at Purchase', align: 'right', render: (p) => formatCurrency(p.totalAmount - p.paidAmount) },
+              { key: 'invoiceNo', header: 'Invoice No.', sortValue: (p) => p.invoiceNo, render: (p) => p.invoiceNo },
+              { key: 'supplier', header: 'Supplier', sortValue: (p) => getSupplier(p.supplierId)?.name ?? '', render: (p) => getSupplier(p.supplierId)?.name ?? '—' },
+              { key: 'total', header: 'Total Purchase', align: 'right', sortValue: (p) => p.totalAmount, render: (p) => formatCurrency(p.totalAmount) },
+              { key: 'paid', header: 'Paid at Purchase', align: 'right', sortValue: (p) => p.paidAmount, render: (p) => formatCurrency(p.paidAmount) },
+              { key: 'remaining', header: 'Due at Purchase', align: 'right', sortValue: (p) => p.totalAmount - p.paidAmount, render: (p) => formatCurrency(p.totalAmount - p.paidAmount) },
             ]}
           />
         )}
@@ -392,12 +395,13 @@ export function ReportsPage() {
             rows={suppliers.filter((s) => filters.supplierId === 'All' || s.id === filters.supplierId)}
             totals={['', '', formatCurrency(suppliers.reduce((sum, s) => sum + getOutstanding(s.id), 0))]}
             columns={[
-              { key: 'name', header: 'Supplier', render: (s) => s.name },
-              { key: 'status', header: 'Status', render: (s) => <span className="capitalize">{s.status}</span> },
+              { key: 'name', header: 'Supplier', sortValue: (s) => s.name, render: (s) => s.name },
+              { key: 'status', header: 'Status', sortValue: (s) => s.status, render: (s) => <span className="capitalize">{s.status}</span> },
               {
                 key: 'outstanding',
                 header: 'Outstanding Balance',
                 align: 'right',
+                sortValue: (s) => getOutstanding(s.id),
                 render: (s) => {
                   const bal = getOutstanding(s.id)
                   return <span className={clsx('font-bold', bal > 0 ? 'text-danger' : 'text-ink-faint')}>{formatCurrency(bal)}</span>
@@ -415,10 +419,10 @@ export function ReportsPage() {
             rows={filteredExpenses}
             totals={['', '', '', formatCurrency(totalExpenses)]}
             columns={[
-              { key: 'date', header: 'Date', render: (e) => formatDate(e.date) },
-              { key: 'category', header: 'Category', render: (e) => e.category },
-              { key: 'description', header: 'Description', render: (e) => e.description },
-              { key: 'amount', header: 'Amount', align: 'right', render: (e) => formatCurrency(e.amount) },
+              { key: 'date', header: 'Date', sortValue: (e) => e.date, render: (e) => formatDate(e.date) },
+              { key: 'category', header: 'Category', sortValue: (e) => e.category, render: (e) => e.category },
+              { key: 'description', header: 'Description', sortValue: (e) => e.description, render: (e) => e.description },
+              { key: 'amount', header: 'Amount', align: 'right', sortValue: (e) => e.amount, render: (e) => formatCurrency(e.amount) },
             ]}
           />
         )}
@@ -429,13 +433,17 @@ export function ReportsPage() {
             rows={products}
             totals={['', '', '', '', formatCurrency(products.reduce((s, p) => s + productStockValue(p.id), 0))]}
             columns={[
-              { key: 'code', header: 'Code', render: (p) => p.code },
-              { key: 'name', header: 'Product', render: (p) => p.name },
-              { key: 'stock', header: 'Current Stock', align: 'right', render: (p) => formatNumber(getStock(p.id)) },
+              { key: 'code', header: 'Code', sortValue: (p) => p.code, render: (p) => p.code },
+              { key: 'name', header: 'Product', sortValue: (p) => p.name, render: (p) => p.name },
+              { key: 'stock', header: 'Current Stock', align: 'right', sortValue: (p) => getStock(p.id), render: (p) => formatNumber(getStock(p.id)) },
               {
                 key: 'cost',
                 header: 'Avg. Cost / Unit',
                 align: 'right',
+                sortValue: (p) => {
+                  const stock = getStock(p.id)
+                  return stock > 0 ? productStockValue(p.id) / stock : (getCurrentPrice(p.id)?.purchaseCost ?? 0)
+                },
                 render: (p) => {
                   const stock = getStock(p.id)
                   // Weighted average across whatever batches are actually left — not just the
@@ -443,7 +451,7 @@ export function ReportsPage() {
                   return formatCurrency(stock > 0 ? productStockValue(p.id) / stock : (getCurrentPrice(p.id)?.purchaseCost ?? 0))
                 },
               },
-              { key: 'value', header: 'Stock Value', align: 'right', render: (p) => formatCurrency(productStockValue(p.id)) },
+              { key: 'value', header: 'Stock Value', align: 'right', sortValue: (p) => productStockValue(p.id), render: (p) => formatCurrency(productStockValue(p.id)) },
             ]}
           />
         )}
@@ -506,12 +514,12 @@ function ProductSalesTable({ saleLines }: { saleLines: SaleLine[] }) {
       rows={grouped}
       totals={['', '', formatNumber(grouped.reduce((s, r) => s + r.qty, 0)), formatCurrency(grouped.reduce((s, r) => s + r.revenue, 0)), formatCurrency(grouped.reduce((s, r) => s + r.cost, 0)), formatCurrency(grouped.reduce((s, r) => s + r.profit, 0))]}
       columns={[
-        { key: 'code', header: 'Code', render: (r) => r.code },
-        { key: 'name', header: 'Product', render: (r) => r.name },
-        { key: 'qty', header: 'Qty Sold', align: 'right', render: (r) => formatNumber(r.qty) },
-        { key: 'revenue', header: 'Revenue', align: 'right', render: (r) => formatCurrency(r.revenue) },
-        { key: 'cost', header: 'Cost', align: 'right', render: (r) => formatCurrency(r.cost) },
-        { key: 'profit', header: 'Profit', align: 'right', render: (r) => <span className="font-semibold text-success">{formatCurrency(r.profit)}</span> },
+        { key: 'code', header: 'Code', sortValue: (r) => r.code, render: (r) => r.code },
+        { key: 'name', header: 'Product', sortValue: (r) => r.name, render: (r) => r.name },
+        { key: 'qty', header: 'Qty Sold', align: 'right', sortValue: (r) => r.qty, render: (r) => formatNumber(r.qty) },
+        { key: 'revenue', header: 'Revenue', align: 'right', sortValue: (r) => r.revenue, render: (r) => formatCurrency(r.revenue) },
+        { key: 'cost', header: 'Cost', align: 'right', sortValue: (r) => r.cost, render: (r) => formatCurrency(r.cost) },
+        { key: 'profit', header: 'Profit', align: 'right', sortValue: (r) => r.profit, render: (r) => <span className="font-semibold text-success">{formatCurrency(r.profit)}</span> },
       ]}
     />
   )
@@ -539,11 +547,11 @@ function SellerTable({ saleLines }: { saleLines: SaleLine[] }) {
       rows={grouped}
       totals={['', formatNumber(grouped.reduce((s, r) => s + r.invoices.size, 0)), formatCurrency(grouped.reduce((s, r) => s + r.revenue, 0)), '', formatCurrency(grouped.reduce((s, r) => s + r.profit, 0))]}
       columns={[
-        { key: 'name', header: 'Seller', render: (r) => r.name },
-        { key: 'invoices', header: 'Transactions', align: 'right', render: (r) => r.invoices.size },
-        { key: 'revenue', header: 'Revenue', align: 'right', render: (r) => formatCurrency(r.revenue) },
-        { key: 'cost', header: 'Cost', align: 'right', render: (r) => formatCurrency(r.cost) },
-        { key: 'profit', header: 'Profit', align: 'right', render: (r) => <span className="font-semibold text-success">{formatCurrency(r.profit)}</span> },
+        { key: 'name', header: 'Seller', sortValue: (r) => r.name, render: (r) => r.name },
+        { key: 'invoices', header: 'Transactions', align: 'right', sortValue: (r) => r.invoices.size, render: (r) => r.invoices.size },
+        { key: 'revenue', header: 'Revenue', align: 'right', sortValue: (r) => r.revenue, render: (r) => formatCurrency(r.revenue) },
+        { key: 'cost', header: 'Cost', align: 'right', sortValue: (r) => r.cost, render: (r) => formatCurrency(r.cost) },
+        { key: 'profit', header: 'Profit', align: 'right', sortValue: (r) => r.profit, render: (r) => <span className="font-semibold text-success">{formatCurrency(r.profit)}</span> },
       ]}
     />
   )
@@ -583,15 +591,16 @@ function ProfitTable({ saleLines, expenses }: { saleLines: SaleLine[]; expenses:
         formatCurrency(grouped.reduce((s, r) => s + (r.revenue - r.cost - r.expenses), 0)),
       ]}
       columns={[
-        { key: 'month', header: 'Month', render: (r) => r.month },
-        { key: 'revenue', header: 'Revenue', align: 'right', render: (r) => formatCurrency(r.revenue) },
-        { key: 'cost', header: 'COGS', align: 'right', render: (r) => formatCurrency(r.cost) },
-        { key: 'gross', header: 'Gross Profit', align: 'right', render: (r) => formatCurrency(r.revenue - r.cost) },
-        { key: 'expenses', header: 'Expenses', align: 'right', render: (r) => formatCurrency(r.expenses) },
+        { key: 'month', header: 'Month', sortValue: (r) => r.month, render: (r) => r.month },
+        { key: 'revenue', header: 'Revenue', align: 'right', sortValue: (r) => r.revenue, render: (r) => formatCurrency(r.revenue) },
+        { key: 'cost', header: 'COGS', align: 'right', sortValue: (r) => r.cost, render: (r) => formatCurrency(r.cost) },
+        { key: 'gross', header: 'Gross Profit', align: 'right', sortValue: (r) => r.revenue - r.cost, render: (r) => formatCurrency(r.revenue - r.cost) },
+        { key: 'expenses', header: 'Expenses', align: 'right', sortValue: (r) => r.expenses, render: (r) => formatCurrency(r.expenses) },
         {
           key: 'net',
           header: 'Net Profit',
           align: 'right',
+          sortValue: (r) => r.revenue - r.cost - r.expenses,
           render: (r) => {
             const net = r.revenue - r.cost - r.expenses
             return <span className={clsx('font-bold', net >= 0 ? 'text-success' : 'text-danger')}>{formatCurrency(net)}</span>

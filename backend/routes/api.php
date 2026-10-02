@@ -72,6 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products/sku/{sku}', [ProductController::class, 'findBySku']);
     Route::apiResource('products', ProductController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::patch('/products/{product}/status', [ProductController::class, 'setStatus']);
+    Route::post('/products/{product}/generate-barcode', [ProductController::class, 'generateBarcode']);
     Route::get('/products/{product}/stock', [ProductController::class, 'stock']);
     Route::get('/products/{product}/price-history', [ProductController::class, 'priceHistory']);
     Route::post('/products/{product}/price-history', [ProductController::class, 'addPrice']);

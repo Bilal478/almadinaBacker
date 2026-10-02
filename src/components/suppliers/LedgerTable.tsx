@@ -26,11 +26,12 @@ export function LedgerTable({ rows }: { rows: LedgerRow[] }) {
       rows={rows}
       emptyMessage="No ledger transactions yet."
       columns={[
-        { key: 'date', header: 'Date', render: (r) => formatDate(r.date) },
-        { key: 'reference', header: 'Reference', render: (r) => r.reference },
+        { key: 'date', header: 'Date', sortValue: (r) => r.date, render: (r) => formatDate(r.date) },
+        { key: 'reference', header: 'Reference', sortValue: (r) => r.reference, render: (r) => r.reference },
         {
           key: 'description',
           header: 'Description',
+          sortValue: (r) => r.description,
           render: (r) => (
             <div className="flex items-center gap-1.5">
               <StatusBadge tone={TYPE_TONE[r.type]}>{TYPE_LABEL[r.type]}</StatusBadge>
@@ -38,9 +39,9 @@ export function LedgerTable({ rows }: { rows: LedgerRow[] }) {
             </div>
           ),
         },
-        { key: 'debit', header: 'Debit', align: 'right', render: (r) => (r.debit ? formatCurrency(r.debit) : <span className="text-ink-faint">—</span>) },
-        { key: 'credit', header: 'Credit', align: 'right', render: (r) => (r.credit ? formatCurrency(r.credit) : <span className="text-ink-faint">—</span>) },
-        { key: 'balance', header: 'Balance', align: 'right', render: (r) => <span className="font-bold text-ink">{formatCurrency(r.balance)}</span> },
+        { key: 'debit', header: 'Debit', align: 'right', sortValue: (r) => r.debit, render: (r) => (r.debit ? formatCurrency(r.debit) : <span className="text-ink-faint">—</span>) },
+        { key: 'credit', header: 'Credit', align: 'right', sortValue: (r) => r.credit, render: (r) => (r.credit ? formatCurrency(r.credit) : <span className="text-ink-faint">—</span>) },
+        { key: 'balance', header: 'Balance', align: 'right', sortValue: (r) => r.balance, render: (r) => <span className="font-bold text-ink">{formatCurrency(r.balance)}</span> },
       ]}
     />
   )

@@ -72,11 +72,11 @@ export function ExpensesPage() {
   }
 
   const columns: DataTableColumn<Expense>[] = [
-    { key: 'date', header: 'Date', render: (e) => formatDate(e.date) },
-    { key: 'category', header: 'Category', render: (e) => e.category },
-    { key: 'description', header: 'Description', render: (e) => e.description },
-    { key: 'paidBy', header: 'Paid By', render: (e) => e.paidBy },
-    { key: 'amount', header: 'Amount', align: 'right', render: (e) => <span className="font-semibold">{formatCurrency(e.amount)}</span> },
+    { key: 'date', header: 'Date', sortValue: (e) => e.date, render: (e) => formatDate(e.date) },
+    { key: 'category', header: 'Category', sortValue: (e) => e.category, render: (e) => e.category },
+    { key: 'description', header: 'Description', sortValue: (e) => e.description, render: (e) => e.description },
+    { key: 'paidBy', header: 'Paid By', sortValue: (e) => e.paidBy, render: (e) => e.paidBy },
+    { key: 'amount', header: 'Amount', align: 'right', sortValue: (e) => e.amount, render: (e) => <span className="font-semibold">{formatCurrency(e.amount)}</span> },
     {
       key: 'actions',
       header: 'Actions',

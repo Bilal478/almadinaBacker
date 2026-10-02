@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import type { DataTableColumn } from '@/components/common/DataTable'
+import { SortableHeaderCell, useSortableRows, type DataTableColumn } from '@/components/common/DataTable'
 
 interface ReportTableProps<T> {
   columns: DataTableColumn<T>[]
@@ -20,35 +20,34 @@ export function ReportTable<T>({
   emptyMessage = 'No data for the selected filters.',
   onRowClick,
 }: ReportTableProps<T>) {
+  const { sortedRows, sortKey, sortDir, toggleSort } = useSortableRows(rows, columns)
+
   return (
     <div className="overflow-auto rounded border border-border bg-panel">
       <table className="w-full min-w-max border-collapse text-sm">
         <thead className="sticky top-0 z-10 bg-panel-alt">
           <tr>
             {columns.map((col) => (
-              <th
+              <SortableHeaderCell
                 key={col.key}
-                style={{ width: col.width }}
-                className={clsx(
-                  'border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint',
-                  col.align === 'right' && 'text-right',
-                  col.align === 'center' && 'text-center',
-                )}
-              >
-                {col.header}
-              </th>
+                col={col}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={toggleSort}
+                className="border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint"
+              />
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.length === 0 && (
+          {sortedRows.length === 0 && (
             <tr>
               <td colSpan={columns.length} className="px-3 py-8 text-center text-sm text-ink-faint">
                 {emptyMessage}
               </td>
             </tr>
           )}
-          {rows.map((row) => (
+          {sortedRows.map((row) => (
             <tr
               key={keyField(row)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -65,7 +64,7 @@ export function ReportTable<T>({
             </tr>
           ))}
         </tbody>
-        {totals && rows.length > 0 && (
+        {totals && sortedRows.length > 0 && (
           <tfoot>
             <tr className="border-t-2 border-border-strong bg-panel-alt font-semibold">
               {totals.map((t, idx) => (

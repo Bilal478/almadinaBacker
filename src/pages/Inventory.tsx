@@ -5,6 +5,7 @@ import { SearchBar } from '@/components/common/SearchBar'
 import { FilterBar, FilterField, selectClass } from '@/components/common/FilterBar'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { Button } from '@/components/common/Button'
+import { ProductSearchSelect } from '@/components/common/ProductSearchSelect'
 import { AdjustmentModal } from '@/components/products/AdjustmentModal'
 import { useProductStore } from '@/store/productStore'
 import { useInventoryStore } from '@/store/inventoryStore'
@@ -95,6 +96,7 @@ export function InventoryPage() {
     {
       key: 'product',
       header: 'Product',
+      sortValue: (r) => r.productName,
       render: (r) => (
         <div>
           <div className="font-semibold text-ink">{r.productName}</div>
@@ -102,12 +104,13 @@ export function InventoryPage() {
         </div>
       ),
     },
-    { key: 'batchNo', header: 'Batch No.', render: (r) => r.batchNo },
-    { key: 'supplier', header: 'Supplier', render: (r) => r.supplierName },
-    { key: 'purchaseDate', header: 'Purchase Date', render: (r) => formatDate(r.purchaseDate) },
+    { key: 'batchNo', header: 'Batch No.', sortValue: (r) => r.batchNo, render: (r) => r.batchNo },
+    { key: 'supplier', header: 'Supplier', sortValue: (r) => r.supplierName, render: (r) => r.supplierName },
+    { key: 'purchaseDate', header: 'Purchase Date', sortValue: (r) => r.purchaseDate, render: (r) => formatDate(r.purchaseDate) },
     {
       key: 'expiry',
       header: 'Expiry Date',
+      sortValue: (r) => r.expiryDate ?? null,
       render: (r) => {
         const soon = !!r.expiryDate && r.remaining > 0 && new Date(r.expiryDate).getTime() - Date.now() < 1000 * 60 * 60 * 24 * 10
         if (!canAdjust) {
@@ -125,12 +128,13 @@ export function InventoryPage() {
         )
       },
     },
-    { key: 'cost', header: 'Purchase Cost', align: 'right', render: (r) => formatCurrency(r.cost) },
-    { key: 'quantity', header: 'Purchased Qty', align: 'right', render: (r) => formatNumber(r.quantity) },
+    { key: 'cost', header: 'Purchase Cost', align: 'right', sortValue: (r) => r.cost, render: (r) => formatCurrency(r.cost) },
+    { key: 'quantity', header: 'Purchased Qty', align: 'right', sortValue: (r) => r.quantity, render: (r) => formatNumber(r.quantity) },
     {
       key: 'remaining',
       header: 'Remaining Qty',
       align: 'right',
+      sortValue: (r) => r.remaining,
       render: (r) => (
         <span className={clsxRemaining(r)}>
           {formatNumber(r.remaining)}
@@ -140,6 +144,7 @@ export function InventoryPage() {
     {
       key: 'status',
       header: 'Status',
+      sortValue: (r) => (r.remaining === 0 ? 'Depleted' : r.productStock <= r.lowStockLevel ? 'Low Stock' : 'Available'),
       render: (r) =>
         r.remaining === 0 ? (
           <StatusBadge tone="neutral">Depleted</StatusBadge>
@@ -164,14 +169,14 @@ export function InventoryPage() {
             <SearchBar value={query} onChange={setQuery} placeholder="Product, code or batch no." className="w-64" />
           </FilterField>
           <FilterField label="Product">
-            <select value={productId} onChange={(e) => setProductId(e.target.value)} className={selectClass}>
-              <option value="All">All Products</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <ProductSearchSelect
+              products={products}
+              value={productId}
+              onChange={setProductId}
+              allOption={{ value: 'All', label: 'All Products' }}
+              placeholder="All Products"
+              className="w-56"
+            />
           </FilterField>
           <FilterField label="View">
             <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)} className={selectClass}>

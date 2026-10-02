@@ -82,10 +82,16 @@ export function CategoriesPage() {
   }
 
   const columns: DataTableColumn<Category>[] = [
-    { key: 'name', header: 'Category Name', render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
-    { key: 'description', header: 'Description', render: (c) => c.description || <span className="text-ink-faint">—</span> },
-    { key: 'count', header: 'Products Using It', align: 'right', render: (c) => products.filter((p) => p.categoryId === c.id).length },
-    { key: 'status', header: 'Status', render: (c) => <StatusBadge tone={c.status === 'active' ? 'success' : 'neutral'}>{c.status}</StatusBadge> },
+    { key: 'name', header: 'Category Name', sortValue: (c) => c.name, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
+    { key: 'description', header: 'Description', sortValue: (c) => c.description ?? null, render: (c) => c.description || <span className="text-ink-faint">—</span> },
+    {
+      key: 'count',
+      header: 'Products Using It',
+      align: 'right',
+      sortValue: (c) => products.filter((p) => p.categoryId === c.id).length,
+      render: (c) => products.filter((p) => p.categoryId === c.id).length,
+    },
+    { key: 'status', header: 'Status', sortValue: (c) => c.status, render: (c) => <StatusBadge tone={c.status === 'active' ? 'success' : 'neutral'}>{c.status}</StatusBadge> },
     {
       key: 'actions',
       header: 'Actions',

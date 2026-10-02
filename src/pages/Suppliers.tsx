@@ -47,20 +47,27 @@ export function SuppliersPage() {
     {
       key: 'name',
       header: 'Supplier Name',
+      sortValue: (s) => s.name,
       render: (s) => (
         <button onClick={() => navigate(`/supplier-payments?supplierId=${s.id}`)} className="text-left font-semibold text-ink hover:text-brand-700 hover:underline">
           {s.name}
         </button>
       ),
     },
-    { key: 'phone', header: 'Phone', render: (s) => s.phone },
-    { key: 'address', header: 'Address', render: (s) => <span className="text-ink-soft">{s.address}</span> },
-    { key: 'type', header: 'Supplier Type', render: (s) => supplierTypes.find((t) => t.id === s.supplierTypeId)?.name ?? '—' },
-    { key: 'status', header: 'Status', render: (s) => <StatusBadge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</StatusBadge> },
+    { key: 'phone', header: 'Phone', sortValue: (s) => s.phone, render: (s) => s.phone },
+    { key: 'address', header: 'Address', sortValue: (s) => s.address, render: (s) => <span className="text-ink-soft">{s.address}</span> },
+    {
+      key: 'type',
+      header: 'Supplier Type',
+      sortValue: (s) => supplierTypes.find((t) => t.id === s.supplierTypeId)?.name ?? '',
+      render: (s) => supplierTypes.find((t) => t.id === s.supplierTypeId)?.name ?? '—',
+    },
+    { key: 'status', header: 'Status', sortValue: (s) => s.status, render: (s) => <StatusBadge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</StatusBadge> },
     {
       key: 'balance',
       header: 'Current Balance',
       align: 'right',
+      sortValue: (s) => getOutstanding(s.id),
       render: (s) => {
         const bal = getOutstanding(s.id)
         return <span className={bal > 0 ? 'font-bold text-danger' : 'text-ink-faint'}>{formatCurrency(bal)}</span>
