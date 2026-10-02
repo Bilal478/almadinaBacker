@@ -139,7 +139,12 @@ export const useSalesStore = create<SalesState>((set) => ({
     )
     set((state) => ({ sales: [sale, ...state.sales] }))
     // The sale consumed stock server-side — refresh products/batches so every screen reflects it.
-    await Promise.all([useProductStore.getState().fetchAll(), useInventoryStore.getState().fetchAll()])
+    // Deliberately not awaited: the sale is already saved, and making the cashier wait for a full
+    // product + inventory reload before the receipt appears was the main delay at checkout. The
+    // backend still validates stock on the next sale, so a second of stale numbers is harmless.
+    Promise.all([useProductStore.getState().fetchAll(), useInventoryStore.getState().fetchAll()]).catch((err) =>
+      console.error('Background stock refresh after sale failed:', err),
+    )
     return sale
   },
 

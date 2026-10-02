@@ -63,11 +63,22 @@ export async function getAll<T>(path: string): Promise<T[]> {
   const result = await api.get<Paginated<T> | T[]>(path)
   if (Array.isArray(result)) return result
 
-  const rows = [...result.data]
   const separator = path.includes('?') ? '&' : '?'
-  for (let page = result.current_page + 1; page <= result.last_page; page++) {
-    const next = await api.get<Paginated<T>>(`${path}${separator}page=${page}`)
-    rows.push(...next.data)
+  const remaining: number[] = []
+  for (let page = result.current_page + 1; page <= result.last_page; page++) remaining.push(page)
+
+  // A few pages at a time instead of strictly one after another — much faster on big
+  // catalogues, without flooding the local PHP server with dozens of simultaneous requests.
+  const pages: T[][] = new Array(remaining.length)
+  let cursor = 0
+  async function worker() {
+    while (cursor < remaining.length) {
+      const index = cursor++
+      pages[index] = (await api.get<Paginated<T>>(`${path}${separator}page=${remaining[index]}`)).data
+    }
   }
-  return rows
+  await Promise.all(Array.from({ length: Math.min(GET_ALL_CONCURRENCY, remaining.length) }, worker))
+  return [...result.data, ...pages.flat()]
 }
+
+const GET_ALL_CONCURRENCY = 4
