@@ -16,9 +16,21 @@ export interface PrinterSettings {
   enabled: boolean
   printerName: string | null
   paperWidth: PaperWidth
+  /** Characters the printer's built-in font fits on one line. null = the usual value for the
+   *  paper width (see defaultCharsPerLine). Needed because 80mm printers genuinely differ — some
+   *  fit 48, many only 42 — and sending more than the printer fits makes it wrap every row. */
+  charsPerLine: number | null
 }
 
-const DEFAULT_SETTINGS: PrinterSettings = { enabled: false, printerName: null, paperWidth: '80mm' }
+const DEFAULT_SETTINGS: PrinterSettings = { enabled: false, printerName: null, paperWidth: '80mm', charsPerLine: null }
+
+export function defaultCharsPerLine(paperWidth: PaperWidth): number {
+  return paperWidth === '80mm' ? 42 : 32
+}
+
+export function effectiveCharsPerLine(settings: Pick<PrinterSettings, 'paperWidth' | 'charsPerLine'>): number {
+  return settings.charsPerLine ?? defaultCharsPerLine(settings.paperWidth)
+}
 
 function load(): PrinterSettings {
   try {
@@ -45,8 +57,8 @@ interface PrinterSettingsState extends PrinterSettings {
 export const usePrinterSettingsStore = create<PrinterSettingsState>((set, get) => ({
   ...load(),
   update: (patch) => {
-    const { enabled, printerName, paperWidth } = { ...get(), ...patch }
-    persist({ enabled, printerName, paperWidth })
+    const { enabled, printerName, paperWidth, charsPerLine } = { ...get(), ...patch }
+    persist({ enabled, printerName, paperWidth, charsPerLine })
     set(patch)
   },
 }))

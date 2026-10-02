@@ -1,6 +1,6 @@
 import type { Sale } from '@/types'
 import type { BusinessSettings } from '@/store/settingsStore'
-import { usePrinterSettingsStore } from '@/store/printerSettingsStore'
+import { usePrinterSettingsStore, effectiveCharsPerLine } from '@/store/printerSettingsStore'
 import { buildReceiptEscPos } from '@/lib/receiptEscPos'
 import { printRawEscPos } from '@/lib/qzTray'
 
@@ -22,11 +22,12 @@ export interface PrintResult {
  * the time this resolves.
  */
 export async function printReceipt(sale: Sale, settings: BusinessSettings | null): Promise<PrintResult> {
-  const { enabled, printerName, paperWidth } = usePrinterSettingsStore.getState()
+  const printerSettings = usePrinterSettingsStore.getState()
+  const { enabled, printerName } = printerSettings
 
   if (enabled && printerName) {
     try {
-      const columns = paperWidth === '80mm' ? 48 : 32
+      const columns = effectiveCharsPerLine(printerSettings)
       const bytes = buildReceiptEscPos(sale, settings, columns)
       await printRawEscPos(printerName, bytes)
       return { method: 'direct' }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
-import { usePrinterSettingsStore } from '@/store/printerSettingsStore'
+import { usePrinterSettingsStore, defaultCharsPerLine } from '@/store/printerSettingsStore'
 import { listPrinters, isQzConnected } from '@/lib/qzTray'
 import { useUiStore } from '@/store/uiStore'
 
@@ -13,7 +13,7 @@ const selectClass =
  * it saves itself immediately on every change rather than waiting for "Save Settings".
  */
 export function PrinterSettingsSection() {
-  const { enabled, printerName, paperWidth, update } = usePrinterSettingsStore()
+  const { enabled, printerName, paperWidth, charsPerLine, update } = usePrinterSettingsStore()
   const pushToast = useUiStore((s) => s.pushToast)
   const [printers, setPrinters] = useState<string[]>([])
   const [detecting, setDetecting] = useState(false)
@@ -89,6 +89,26 @@ export function PrinterSettingsSection() {
               >
                 <RefreshCw size={14} className={detecting ? 'animate-spin' : ''} />
               </button>
+            </div>
+          </div>
+
+          <div className="col-span-2">
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-faint">Characters Per Line</label>
+            <select
+              value={charsPerLine ?? ''}
+              onChange={(e) => update({ charsPerLine: e.target.value ? Number(e.target.value) : null })}
+              className={selectClass}
+            >
+              <option value="">Default for {paperWidth} ({defaultCharsPerLine(paperWidth)})</option>
+              {[32, 42, 48].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <div className="mt-1 text-[11px] text-ink-faint">
+              If receipt lines wrap onto a second line, pick a smaller number. If there's an empty margin on the right,
+              pick a larger one.
             </div>
           </div>
 
