@@ -42,23 +42,28 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
   ])
   encoder.rule()
 
-  const itemCols = itemColumns(columns)
+  // 58mm paper is too narrow for four columns without shredding names, so it drops Price there.
+  const showPrice = columns >= 40
+  const itemCols = itemColumns(columns, showPrice)
+  const row = (name: string, qty: string, price: string, amount: string) => (showPrice ? [name, qty, price, amount] : [name, qty, amount])
   encoder.bold(true)
-  encoder.table(itemCols, [['Item', 'Qty', 'Price', 'Ext Price']])
+  encoder.table(itemCols, [row('Item', 'Qty', 'Price', 'Ext Price')])
   encoder.bold(false)
   encoder.rule()
+  // Every item gets the same shape: name + figures on the first line, and any overflow of a long
+  // name continues underneath, indented, inside the Item column only. The indent is what marks
+  // it as a continuation rather than the next product.
   const nameWidth = itemCols[0].width as number
-  for (const item of sale.items) {
-    const figures = [formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)]
-    if (item.name.length <= nameWidth) {
-      encoder.table(itemCols, [[item.name, ...figures]])
-    } else {
-      // A name wrapped inside the narrow Item column runs into the next item's name and reads
-      // as a jumble — give it its own full-width line with the figures on the line below.
-      encoder.line(item.name)
-      encoder.table(itemCols, [['', ...figures]])
-    }
-  }
+  encoder.table(
+    itemCols,
+    sale.items.flatMap((item) => {
+      const [first, ...rest] = wrapName(item.name, nameWidth)
+      return [
+        row(first, formatQty(item.qty), formatAmount(item.unitPrice), formatAmount(item.total)),
+        ...rest.map((line) => row(line, '', '', '')),
+      ]
+    }),
+  )
   encoder.rule()
 
   const totalCols = twoColumns(columns, 0.55)
@@ -88,12 +93,54 @@ function twoColumns(columns: number, firstShare: number): TableColumn[] {
 
 /** Numeric columns get fixed widths that fit their values (plus a 1-char gap on the left so
  *  adjacent figures never touch); the item name takes the rest, so names wrap less often. */
-function itemColumns(columns: number): TableColumn[] {
-  const narrow = columns < 40
+function itemColumns(columns: number, showPrice: boolean): TableColumn[] {
   const qty = 3
-  const price = narrow ? 8 : 9
-  const amount = narrow ? 9 : 10
-  const item = columns - qty - price - amount - 3
+  const price = 8
+  const amount = 9
   const num = (width: number): TableColumn => ({ width, align: 'right', marginLeft: 1 })
-  return [{ width: item }, num(qty), num(price), num(amount)]
+  if (!showPrice) return [{ width: columns - qty - amount - 2 }, num(qty), num(amount)]
+  return [{ width: columns - qty - price - amount - 3 }, num(qty), num(price), num(amount)]
+}
+
+const CONTINUATION_INDENT = '  '
+
+/** Word-wraps a product name into the Item column: the first line uses the full width, later
+ *  lines are indented. A single word too long for a line is hard-split. */
+function wrapName(name: string, width: number): string[] {
+  const lines: string[] = []
+  let current = ''
+  const limit = () => (lines.length === 0 ? width : width - CONTINUATION_INDENT.length)
+  const push = () => {
+    lines.push(lines.length === 0 ? current : CONTINUATION_INDENT + current)
+    current = ''
+  }
+  for (let word of keepSizesTogether(name.trim().split(/\s+/))) {
+    while (word.length > 0) {
+      const room = limit() - (current ? current.length + 1 : 0)
+      if (word.length <= room) {
+        current = current ? `${current} ${word}` : word
+        word = ''
+      } else if (current) {
+        push()
+      } else {
+        current = word.slice(0, room)
+        word = word.slice(room)
+        push()
+      }
+    }
+  }
+  if (current || lines.length === 0) push()
+  return lines.map((line) => line.replace(/ /g, ' '))
+}
+
+/** Glues a number to the unit after it ("1 kg", "250 ml") with a non-breaking space so a
+ *  wrap never leaves the unit dangling alone on the next line. */
+function keepSizesTogether(words: string[]): string[] {
+  const out: string[] = []
+  for (const word of words) {
+    const prev = out[out.length - 1]
+    if (prev && /^\d+([.,]\d+)?$/.test(prev) && /^[a-z]{1,3}\.?$/i.test(word)) out[out.length - 1] = `${prev} ${word}`
+    else out.push(word)
+  }
+  return out
 }
