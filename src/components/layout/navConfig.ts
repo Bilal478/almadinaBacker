@@ -15,6 +15,7 @@ import {
   Tags,
   Ruler,
   FolderTree,
+  Barcode,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -28,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/pos', label: 'POS / Sales', icon: ShoppingCart, permission: 'view_pos' },
   { to: '/products', label: 'Products', icon: Package, permission: 'view_products' },
+  { to: '/barcode-labels', label: 'Barcode Labels', icon: Barcode, permission: 'view_products' },
   { to: '/categories', label: 'Categories', icon: FolderTree, permission: 'manage_products' },
   { to: '/units', label: 'Units', icon: Ruler, permission: 'manage_products' },
   { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'manage_inventory' },

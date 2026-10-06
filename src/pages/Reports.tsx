@@ -36,6 +36,7 @@ const TABS: { key: Tab; label: string }[] = [
  *  still narrowing this one's numbers with no control on screen to explain why. */
 function shownFiltersFor(tab: Tab) {
   return {
+    invoiceNo: tab === 'sales' || tab === 'suppliers',
     product: tab === 'sales' || tab === 'products' || tab === 'profit',
     seller: tab === 'sales' || tab === 'sellers' || tab === 'products',
     supplier: tab === 'suppliers' || tab === 'outstanding',
@@ -89,6 +90,7 @@ export function ReportsPage() {
       sellerId: shown.seller ? f.sellerId : 'All',
       supplierId: shown.supplier ? f.supplierId : 'All',
       paymentMethod: shown.paymentMethod ? f.paymentMethod : 'All',
+      invoiceNo: shown.invoiceNo ? f.invoiceNo : '',
     }))
   }, [tab])
 
@@ -96,16 +98,31 @@ export function ReportsPage() {
     setFilters((f) => ({ ...f, ...patch }))
   }
 
+  const invoiceQuery = filters.invoiceNo.trim().toLowerCase()
+
   const filteredSales = useMemo(
     () =>
       allSales.filter((s) => {
         if (s.date < filters.from || s.date > filters.to) return false
+        if (invoiceQuery && !s.invoiceNo.toLowerCase().includes(invoiceQuery)) return false
         if (filters.sellerId !== 'All' && s.cashierId !== filters.sellerId) return false
         if (filters.paymentMethod !== 'All' && s.paymentMethod !== filters.paymentMethod) return false
         if (filters.productId !== 'All' && !s.items.some((i) => i.productId === filters.productId)) return false
         return true
       }),
-    [allSales, filters],
+    [allSales, filters, invoiceQuery],
+  )
+
+  const filteredPurchases = useMemo(
+    () =>
+      purchases.filter(
+        (p) =>
+          p.date >= filters.from &&
+          p.date <= filters.to &&
+          (filters.supplierId === 'All' || p.supplierId === filters.supplierId) &&
+          (!invoiceQuery || p.invoiceNo.toLowerCase().includes(invoiceQuery)),
+      ),
+    [purchases, filters, invoiceQuery],
   )
 
   // Flattened line-level rows — the unit needed for product/seller aggregation. Every figure
@@ -161,9 +178,6 @@ export function ReportsPage() {
   const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount, 0)
 
   function handleExport() {
-    const suppliersInRange = purchases.filter(
-      (p) => p.date >= filters.from && p.date <= filters.to && (filters.supplierId === 'All' || p.supplierId === filters.supplierId),
-    )
     const outstandingRows = suppliers.filter((s) => filters.supplierId === 'All' || s.id === filters.supplierId)
 
     let headers: string[]
@@ -195,7 +209,7 @@ export function ReportsPage() {
         break
       case 'suppliers':
         headers = ['Invoice No.', 'Supplier', 'Total Purchase', 'Paid at Purchase', 'Due at Purchase']
-        rows = suppliersInRange.map((p) => [p.invoiceNo, getSupplier(p.supplierId)?.name ?? '—', p.totalAmount, p.paidAmount, p.totalAmount - p.paidAmount])
+        rows = filteredPurchases.map((p) => [p.invoiceNo, getSupplier(p.supplierId)?.name ?? '—', p.totalAmount, p.paidAmount, p.totalAmount - p.paidAmount])
         break
       case 'outstanding':
         headers = ['Supplier', 'Status', 'Outstanding Balance']
@@ -364,12 +378,12 @@ export function ReportsPage() {
         {tab === 'suppliers' && (
           <ReportTable
             keyField={(r) => r.id}
-            rows={purchases.filter((p) => p.date >= filters.from && p.date <= filters.to && (filters.supplierId === 'All' || p.supplierId === filters.supplierId))}
+            rows={filteredPurchases}
             totals={[
               '',
               '',
-              formatCurrency(purchases.filter((p) => p.date >= filters.from && p.date <= filters.to && (filters.supplierId === 'All' || p.supplierId === filters.supplierId)).reduce((s, p) => s + p.totalAmount, 0)),
-              formatCurrency(purchases.filter((p) => p.date >= filters.from && p.date <= filters.to && (filters.supplierId === 'All' || p.supplierId === filters.supplierId)).reduce((s, p) => s + p.paidAmount, 0)),
+              formatCurrency(filteredPurchases.reduce((s, p) => s + p.totalAmount, 0)),
+              formatCurrency(filteredPurchases.reduce((s, p) => s + p.paidAmount, 0)),
               '',
             ]}
             columns={[

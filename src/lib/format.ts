@@ -36,6 +36,14 @@ const SUB_UNITS: Record<string, { symbol: string; factor: number }> = {
 
 /** Formats a quantity for display, switching to the natural smaller unit under 1 (0.3 kg
  *  becomes "300 g", 0.3 dozen stays "0.3 dozen" — there's no smaller everyday unit for that). */
+/** How many products a line contributes to a "Total Qty" count. A weighed/measured line
+ *  (0.5 kg of cake, 2 ltr of milk) is one product however much of it there is; a counted line
+ *  (3 pcs) contributes its quantity. */
+export function countableQty(qty: number, unitSymbol: string): number {
+  if (qty <= 0) return 0
+  return SUB_UNITS[unitSymbol.toLowerCase()] ? 1 : qty
+}
+
 export function formatQuantity(qty: number, unitSymbol: string): string {
   const sub = SUB_UNITS[unitSymbol.toLowerCase()]
   if (sub && qty > 0 && qty < 1) {

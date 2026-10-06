@@ -1,6 +1,7 @@
 import { FilterBar, FilterField, selectClass } from '@/components/common/FilterBar'
 import { DateRangePicker } from '@/components/common/DateRangePicker'
 import { ProductSearchSelect } from '@/components/common/ProductSearchSelect'
+import { SearchBar } from '@/components/common/SearchBar'
 import { useProductStore } from '@/store/productStore'
 import { useSupplierStore } from '@/store/supplierStore'
 import { useUserStore } from '@/store/userStore'
@@ -13,12 +14,13 @@ export interface ReportFilters {
   sellerId: string
   supplierId: string
   paymentMethod: string
+  invoiceNo: string
 }
 
 interface ReportFilterBarProps {
   filters: ReportFilters
   onChange: (patch: Partial<ReportFilters>) => void
-  show?: { product?: boolean; seller?: boolean; supplier?: boolean; paymentMethod?: boolean }
+  show?: { invoiceNo?: boolean; product?: boolean; seller?: boolean; supplier?: boolean; paymentMethod?: boolean }
 }
 
 const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'bank_transfer', 'other']
@@ -33,6 +35,11 @@ export function ReportFilterBar({ filters, onChange, show = {} }: ReportFilterBa
       <FilterField label="Date From">
         <DateRangePicker from={filters.from} to={filters.to} onFromChange={(v) => onChange({ from: v })} onToChange={(v) => onChange({ to: v })} />
       </FilterField>
+      {show.invoiceNo && (
+        <FilterField label="Invoice No.">
+          <SearchBar value={filters.invoiceNo} onChange={(invoiceNo) => onChange({ invoiceNo })} placeholder="Search invoice number" className="w-48" />
+        </FilterField>
+      )}
       {show.product && (
         <FilterField label="Product">
           <ProductSearchSelect
@@ -92,4 +99,5 @@ export const DEFAULT_REPORT_FILTERS: ReportFilters = {
   sellerId: 'All',
   supplierId: 'All',
   paymentMethod: 'All',
+  invoiceNo: '',
 }

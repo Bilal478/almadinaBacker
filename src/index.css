@@ -81,18 +81,8 @@ table {
   display: none;
 }
 
-/* Barcode label printing — see BarcodeLabelModal/BarcodeLabelContent. Same "hidden on screen,
-   shown full-page only when printing" pattern as the receipt area above, but sized for a small
-   adhesive label on a separate thermal label printer instead of the receipt roll. The actual
-   @page size for this is injected dynamically (see BarcodeLabelModal) since a stylesheet can't
-   make @page conditional on which print area is active — it only ever applies the one
-   currently in the cascade, so the label modal swaps it in only while it's open. */
-.label-print-area {
-  display: none;
-}
-
 @media print {
-  body > *:not(.receipt-print-area):not(.label-print-area) {
+  body > *:not(.receipt-print-area) {
     display: none !important;
   }
   /* @page's own margin isn't reliably honored by thermal-printer drivers (some ignore it,
@@ -129,20 +119,5 @@ table {
   @page {
     size: 80mm auto;
     margin: 0;
-  }
-
-  /* Fills whatever label size BarcodeLabelModal has set via its dynamic @page override — see
-     that component for why the actual size can't live here as a fixed value. */
-  .label-print-area {
-    display: flex !important;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    padding: 0;
-  }
-  .label-print-area * {
-    color: #000 !important;
   }
 }

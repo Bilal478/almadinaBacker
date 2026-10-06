@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { TopScrollContainer } from '@/components/common/TopScrollContainer'
 import { SortableHeaderCell, useSortableRows, type DataTableColumn } from '@/components/common/DataTable'
 
 interface ReportTableProps<T> {
@@ -23,7 +24,7 @@ export function ReportTable<T>({
   const { sortedRows, sortKey, sortDir, toggleSort } = useSortableRows(rows, columns)
 
   return (
-    <div className="overflow-auto rounded border border-border bg-panel">
+    <TopScrollContainer className="rounded border border-border bg-panel">
       <table className="w-full min-w-max border-collapse text-sm">
         <thead className="sticky top-0 z-10 bg-panel-alt">
           <tr>
@@ -76,6 +77,6 @@ export function ReportTable<T>({
           </tfoot>
         )}
       </table>
-    </div>
+    </TopScrollContainer>
   )
 }

@@ -1,6 +1,7 @@
 import { Modal } from '@/components/common/Modal'
 import { Button } from '@/components/common/Button'
 import { StatusBadge } from '@/components/common/StatusBadge'
+import { TopScrollContainer } from '@/components/common/TopScrollContainer'
 import { formatCurrency, formatDateTime, formatQuantity } from '@/lib/format'
 import { Printer, Undo2 } from 'lucide-react'
 import type { Sale } from '@/types'
@@ -57,7 +58,7 @@ export function SaleDetailModal({
           <InfoTile label="Status" value={<StatusBadge tone={sale.status === 'completed' ? 'success' : sale.status === 'voided' ? 'danger' : 'neutral'}>{sale.status}</StatusBadge>} />
         </div>
 
-        <div className="overflow-auto rounded border border-border">
+        <TopScrollContainer className="rounded border border-border">
           <table className="w-full min-w-max border-collapse text-sm">
             <thead className="bg-panel-alt">
               <tr>
@@ -91,7 +92,7 @@ export function SaleDetailModal({
               ))}
             </tbody>
           </table>
-        </div>
+        </TopScrollContainer>
 
         <div className="ml-auto max-w-xs space-y-1 text-[13px]">
           <div className="flex justify-between text-ink-soft">

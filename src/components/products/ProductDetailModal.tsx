@@ -180,7 +180,7 @@ export function ProductDetailModal({ product, onClose }: { product: Product | nu
         </div>
       )}
     </Modal>
-    <BarcodeLabelModal product={printingBarcodeFor} onClose={() => setPrintingBarcodeFor(null)} />
+    <BarcodeLabelModal key={printingBarcodeFor?.id ?? 'none'} product={printingBarcodeFor} onClose={() => setPrintingBarcodeFor(null)} />
     </>
   )
 }

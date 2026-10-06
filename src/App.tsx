@@ -11,6 +11,7 @@ import { LoginPage } from '@/pages/Login'
 import { DashboardPage } from '@/pages/Dashboard'
 import { PosPage } from '@/pages/pos/PosPage'
 import { ProductsPage } from '@/pages/Products'
+import { BarcodeLabelsPage } from '@/pages/BarcodeLabels'
 import { CategoriesPage } from '@/pages/Categories'
 import { UnitsPage } from '@/pages/Units'
 import { InventoryPage } from '@/pages/Inventory'
@@ -63,6 +64,14 @@ export default function App() {
               element={
                 <RequirePermission permission="view_products">
                   <ProductsPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/barcode-labels"
+              element={
+                <RequirePermission permission="view_products">
+                  <BarcodeLabelsPage />
                 </RequirePermission>
               }
             />

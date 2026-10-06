@@ -4,7 +4,7 @@ import { useCartStore } from '@/store/cartStore'
 import { CartItemRow } from '@/components/pos/CartItemRow'
 import { PaymentPanel } from '@/components/pos/PaymentPanel'
 import { Button } from '@/components/common/Button'
-import { formatCurrency } from '@/lib/format'
+import { countableQty, formatCurrency, formatNumber } from '@/lib/format'
 
 interface CartPanelProps {
   invoiceNo: string
@@ -30,6 +30,7 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
   const subtotal = useCartStore((s) => s.subtotal())
   const totalDiscount = useCartStore((s) => s.totalDiscount())
   const grandTotal = useCartStore((s) => s.grandTotal())
+  const totalQty = items.reduce((sum, i) => sum + countableQty(i.qty, i.unit), 0)
 
   return (
     <div className="flex h-full min-h-0 w-[380px] shrink-0 flex-col rounded border border-border bg-panel">
@@ -83,6 +84,10 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
       </div>
 
       <div className="space-y-1 border-t border-border p-2.5 text-[12.5px]">
+        <div className="flex justify-between text-ink-soft">
+          <span>Total Qty</span>
+          <span className="tabular-nums">{formatNumber(totalQty)}</span>
+        </div>
         <div className="flex justify-between text-ink-soft">
           <span>Subtotal</span>
           <span className="tabular-nums">{formatCurrency(subtotal)}</span>

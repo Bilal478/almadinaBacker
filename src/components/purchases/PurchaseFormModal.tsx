@@ -8,7 +8,7 @@ import { useProductStore } from '@/store/productStore'
 import { useSupplierStore } from '@/store/supplierStore'
 import { useUiStore } from '@/store/uiStore'
 import { ApiError } from '@/lib/api'
-import { formatCurrency } from '@/lib/format'
+import { countableQty, formatCurrency, formatNumber } from '@/lib/format'
 import type { Product, Unit } from '@/types'
 
 interface LineDraft {
@@ -92,6 +92,7 @@ export function PurchaseFormModal({ open, onClose }: { open: boolean; onClose: (
     }
   }
 
+  const totalQty = lines.reduce((sum, l) => sum + countableQty(Number(l.quantity) || 0, l.unit), 0)
   const total = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0) * (Number(l.cost) || 0), 0)
   const paid = Number(paidAmount) || 0
   const remaining = Math.max(0, total - paid)
@@ -310,7 +311,11 @@ export function PurchaseFormModal({ open, onClose }: { open: boolean; onClose: (
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 rounded border border-border bg-panel-alt p-3">
+        <div className="grid grid-cols-4 gap-3 rounded border border-border bg-panel-alt p-3">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Total Qty</div>
+            <div className="text-[16px] font-bold text-ink">{formatNumber(totalQty)}</div>
+          </div>
           <div>
             <div className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Total Purchase</div>
             <div className="text-[16px] font-bold text-ink">{formatCurrency(total)}</div>

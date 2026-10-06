@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import clsx from 'clsx'
+import { TopScrollContainer } from '@/components/common/TopScrollContainer'
 
 export interface DataTableColumn<T> {
   key: string
@@ -114,7 +115,7 @@ export function DataTable<T>({ columns, rows, keyField, onRowClick, emptyMessage
   const { sortedRows, sortKey, sortDir, toggleSort } = useSortableRows(rows, columns)
 
   return (
-    <div className="overflow-auto rounded border border-border bg-panel">
+    <TopScrollContainer className="rounded border border-border bg-panel">
       <table className="w-full min-w-max border-collapse text-sm">
         <thead className="sticky top-0 z-10 bg-panel-alt">
           <tr>
@@ -160,6 +161,6 @@ export function DataTable<T>({ columns, rows, keyField, onRowClick, emptyMessage
           ))}
         </tbody>
       </table>
-    </div>
+    </TopScrollContainer>
   )
 }
