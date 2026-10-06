@@ -11,7 +11,6 @@ use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\PurchaseReturnController;
-use App\Http\Controllers\Api\QzController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SaleController;
@@ -25,14 +24,10 @@ use Illuminate\Support\Facades\Route;
 
 // ---------- Auth (no token required) ----------
 Route::post('/auth/login', [AuthController::class, 'login']);
-// QZ Tray's public certificate — public by nature, and requested as soon as a till connects
-// (possibly before anyone has logged in). Signing below still needs a logged-in user.
-Route::get('/qz/certificate', [QzController::class, 'certificate']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
-    Route::post('/qz/sign', [QzController::class, 'sign']);
     Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
 

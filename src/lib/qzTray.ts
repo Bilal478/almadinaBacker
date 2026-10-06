@@ -1,25 +1,11 @@
 import qz from 'qz-tray'
-import { api } from '@/lib/api'
 
-// Signed with this bakery's own certificate (created once per server by `php artisan
-// qz:certificate`; the private key never leaves the backend). Unsigned, QZ Tray treats the POS
-// as an "anonymous" site and asks Allow/Block on every connection — it won't remember "Allow"
-// for anonymous sites. Signed, the cashier ticks "Remember this decision" once per till. If the
-// server has no certificate yet, or signing fails, it falls back to unsigned (prompting) mode
-// rather than blocking printing.
-qz.security.setCertificatePromise((resolve: (cert?: string) => void) => {
-  api
-    .get<{ certificate: string | null }>('/qz/certificate')
-    .then((res) => resolve(res.certificate ?? undefined))
-    .catch(() => resolve())
-})
-qz.security.setSignatureAlgorithm('SHA512')
-qz.security.setSignaturePromise((toSign: string) => (resolve: (signature?: string) => void) => {
-  api
-    .post<{ signature: string | null }>('/qz/sign', { request: toSign })
-    .then((res) => resolve(res.signature ?? undefined))
-    .catch(() => resolve())
-})
+// Unsigned mode — no certificate authority, no signing service. QZ Tray will show its own
+// "unsigned request" trust prompt the first time this browser profile connects (the user can
+// tick "remember this decision" so it doesn't ask again); a paid signing certificate would
+// suppress that prompt entirely, but isn't required for this to work.
+qz.security.setCertificatePromise((resolve: () => void) => resolve())
+qz.security.setSignaturePromise(() => (resolve: () => void) => resolve())
 
 let connecting: Promise<void> | null = null
 
