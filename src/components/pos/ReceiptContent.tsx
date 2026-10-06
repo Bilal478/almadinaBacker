@@ -1,6 +1,6 @@
 import type { Sale } from '@/types'
 import type { BusinessSettings } from '@/store/settingsStore'
-import { formatAmount, formatCurrency, formatDateTime, formatQty } from '@/lib/format'
+import { countableQty, formatAmount, formatCurrency, formatDateTime, formatNumber, formatQty } from '@/lib/format'
 
 /**
  * The actual receipt body — rendered twice by ReceiptModal: once inside the on-screen preview
@@ -81,6 +81,11 @@ export function ReceiptContent({ sale, settings }: { sale: Sale; settings: Busin
       </table>
 
       <div className="border-t border-dashed border-border-strong py-1.5">
+        <div className="flex justify-between">
+          <span>Total Qty</span>
+          {/* Same count as the POS cart: a weighed line (0.5 kg) counts as 1 item. */}
+          <span>{formatNumber(sale.items.reduce((sum, i) => sum + countableQty(i.qty, i.unit), 0))}</span>
+        </div>
         <div className="flex justify-between">
           <span>Subtotal</span>
           <span>{formatCurrency(sale.subtotal)}</span>
