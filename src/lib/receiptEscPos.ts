@@ -2,7 +2,7 @@ import ReceiptPrinterEncoder from '@point-of-sale/receipt-printer-encoder'
 import type { TableColumn } from '@point-of-sale/receipt-printer-encoder'
 import type { Sale } from '@/types'
 import type { BusinessSettings } from '@/store/settingsStore'
-import { countableQty, formatAmount, formatCurrency, formatDateTime, formatNumber, formatQty } from '@/lib/format'
+import { formatAmount, formatCurrency, formatDateTime, formatNumber, formatQty } from '@/lib/format'
 
 /**
  * Lines fed after the last printed line before cutting. Thermal printers cut several lines
@@ -56,9 +56,8 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
   encoder.rule()
 
   const totalCols = twoColumns(columns, 0.55)
-  // Counted the same way as the POS cart's Total Qty: a weighed line (0.5 kg) counts as 1 item.
-  const totalQty = sale.items.reduce((sum, i) => sum + countableQty(i.qty, i.unit), 0)
-  const totalRows: string[][] = [['Total Qty', formatNumber(totalQty)], ['Subtotal', formatCurrency(sale.subtotal)]]
+  // Number of different products on the bill (lines), not the sum of their quantities.
+  const totalRows: string[][] = [['Total Items', formatNumber(sale.items.length)], ['Subtotal', formatCurrency(sale.subtotal)]]
   if (sale.discount > 0) totalRows.push(['Discount', `-${formatCurrency(sale.discount)}`])
   totalRows.push(['Tax (0%)', `+ ${formatCurrency(0)}`])
   encoder.table(totalCols, totalRows)
