@@ -107,7 +107,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales/{sale}/return', [SaleReturnController::class, 'store']);
 
     // ---------- Expenses ----------
-    Route::apiResource('expense-categories', ExpenseCategoryController::class)->only(['index', 'store']);
+    Route::apiResource('expense-categories', ExpenseCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::patch('/expense-categories/{expenseCategory}/status', [ExpenseCategoryController::class, 'setStatus']);
     Route::apiResource('expenses', ExpenseController::class)->only(['index', 'show', 'store', 'update']);
     Route::patch('/expenses/{expense}/void', [ExpenseController::class, 'void']);
 

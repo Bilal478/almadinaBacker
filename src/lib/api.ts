@@ -12,6 +12,15 @@ export class ApiError extends Error {
   }
 }
 
+/** The most useful text for an error toast: the first field-level validation message when there
+ *  is one ("An expense category with this name already exists."), rather than the generic
+ *  "Validation failed" the API puts in `message`. */
+export function apiErrorMessage(e: unknown, fallback: string): string {
+  if (!(e instanceof ApiError)) return fallback
+  const first = Object.values(e.errors).flat()[0]
+  return first ?? e.message
+}
+
 let token: string | null = localStorage.getItem('bakery-admart-token')
 
 export function setToken(next: string | null) {

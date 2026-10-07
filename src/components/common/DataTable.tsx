@@ -83,7 +83,10 @@ export function SortableHeaderCell<T>({
 
   const active = sortKey === col.key
   return (
-    <th style={{ width: col.width }} className={clsx(className, alignRight && 'text-right', alignCenter && 'text-center')}>
+    <th
+      style={{ width: col.width }}
+      className={clsx(className, alignRight && 'text-right', alignCenter && 'text-center', !alignRight && !alignCenter && 'text-left')}
+    >
       <button
         type="button"
         onClick={() => onSort(col.key)}

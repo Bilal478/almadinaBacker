@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\BusinessException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreExpenseRequest;
 use App\Models\Expense;
@@ -14,7 +15,13 @@ class ExpenseController extends Controller
     {
         $this->authorize('manage_expenses');
 
-        $query = Expense::with(['category', 'createdBy'])->where('status', 'active');
+        // Active by default (what the page and totals use); ?status=void lists the void history,
+        // ?status=all both.
+        $status = $request->input('status', 'active');
+        $query = Expense::with(['category', 'createdBy', 'voidedBy']);
+        if ($status !== 'all') {
+            $query->where('status', $status === 'void' ? 'void' : 'active');
+        }
         if ($request->filled('date_from')) {
             $query->where('expense_date', '>=', $request->date_from);
         }
@@ -31,7 +38,7 @@ class ExpenseController extends Controller
     public function show(Expense $expense)
     {
         $this->authorize('manage_expenses');
-        return $this->success($expense->load(['category', 'createdBy']));
+        return $this->success($expense->load(['category', 'createdBy', 'voidedBy']));
     }
 
     public function store(StoreExpenseRequest $request)
@@ -52,12 +59,22 @@ class ExpenseController extends Controller
     }
 
     /** Expenses are financial history — voided, never hard-deleted. */
-    public function void(Expense $expense)
+    public function void(Request $request, Expense $expense)
     {
         $this->authorize('manage_expenses');
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+        if ($expense->status === 'void') {
+            throw new BusinessException('This expense is already voided.', 'ALREADY_VOIDED', 409);
+        }
+
         $old = $expense->toArray();
-        $expense->update(['status' => 'void']);
+        $expense->update([
+            'status' => 'void',
+            'voided_at' => now(),
+            'voided_by' => $request->user()->id,
+            'void_reason' => $data['reason'] ?? null,
+        ]);
         AuditLogger::log('voided', 'expenses', 'expense', $expense->id, $old, $expense->fresh()->toArray());
-        return $this->success($expense, 'Expense voided');
+        return $this->success($expense->load(['category', 'createdBy', 'voidedBy']), 'Expense voided');
     }
 }

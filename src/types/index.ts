@@ -211,6 +211,11 @@ export interface Expense {
   description: string
   amount: number
   paidBy: string
+  status: 'active' | 'void'
+  /** Set only on voided expenses (null for ones voided before these were recorded). */
+  voidedAt: string | null
+  voidedBy: string | null
+  voidReason: string | null
 }
 
 // ===================== Users / Roles / Permissions =====================
