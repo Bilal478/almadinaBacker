@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  */
 class SaleReturnService
 {
-    public function __construct(private InventoryService $inventory)
+    public function __construct(private InventoryService $inventory, private SaleCreditService $credit)
     {
     }
 
@@ -73,6 +73,7 @@ class SaleReturnService
             }
 
             $saleReturn->update(['total_refund' => round($totalRefund, 2)]);
+            $this->credit->applyReturn($sale, round($totalRefund, 2));
 
             AuditLogger::log('created', 'sale_returns', 'sale_return', $saleReturn->id, null, $saleReturn->fresh()->toArray());
 

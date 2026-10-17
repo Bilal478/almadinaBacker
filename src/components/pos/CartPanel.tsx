@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import clsx from 'clsx'
 import { PauseCircle, ShoppingBag, Users } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { CartItemRow } from '@/components/pos/CartItemRow'
@@ -24,6 +25,7 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
   const items = useCartStore((s) => s.items)
   const customerName = useCartStore((s) => s.customerName)
   const setCustomerName = useCartStore((s) => s.setCustomerName)
+  const isCredit = useCartStore((s) => s.paymentMethod === 'credit')
   const heldSales = useCartStore((s) => s.heldSales)
   const orderDiscount = useCartStore((s) => s.orderDiscount)
   const setOrderDiscount = useCartStore((s) => s.setOrderDiscount)
@@ -55,8 +57,13 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
             ref={customerRef}
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
-            placeholder="Customer name (optional) — F4"
-            className="w-full rounded border border-border-strong bg-panel py-1.5 pl-7 pr-2 text-[12.5px] outline-none placeholder:text-ink-faint focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            placeholder={isCredit ? 'Customer name (required for Pay Later) — F4' : 'Customer name (optional) — F4'}
+            className={clsx(
+              'w-full rounded border bg-panel py-1.5 pl-7 pr-2 text-[12.5px] outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500',
+              isCredit && !customerName.trim()
+                ? 'border-warning placeholder:text-warning'
+                : 'border-border-strong placeholder:text-ink-faint',
+            )}
           />
         </div>
       </div>
@@ -127,7 +134,7 @@ export const CartPanel = forwardRef<HTMLInputElement, CartPanelProps>(function C
           onClick={onCompleteSale}
           disabled={items.length === 0 || completingSale}
         >
-          {completingSale ? 'PROCESSING…' : 'COMPLETE SALE (F9)'}
+          {completingSale ? 'PROCESSING…' : isCredit ? 'SAVE AS UNPAID (F9)' : 'COMPLETE SALE (F9)'}
         </Button>
       </div>
     </div>

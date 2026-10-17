@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CreditSaleController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExpenseCategoryController;
 use App\Http\Controllers\Api\ExpenseController;
@@ -105,6 +106,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales/{sale}/void', [SaleController::class, 'void']);
     Route::post('/sales/{sale}/mark-printed', [SaleController::class, 'markPrinted']);
     Route::post('/sales/{sale}/return', [SaleReturnController::class, 'store']);
+
+    // ---------- Pay-later (credit) invoices ----------
+    Route::get('/credit-sales', [CreditSaleController::class, 'index']);
+    Route::post('/sales/{sale}/payments', [CreditSaleController::class, 'receivePayment']);
 
     // ---------- Expenses ----------
     Route::apiResource('expense-categories', ExpenseCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
