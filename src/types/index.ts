@@ -135,6 +135,10 @@ export interface SupplierLedgerEntry {
 
 export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'other'
 
+/** How a sale was settled at the counter — the real payment methods, plus 'credit' for
+ *  "pay later" (goods taken now, money received on a later day). */
+export type SalePaymentMethod = PaymentMethod | 'credit'
+
 export interface SupplierPayment {
   id: string
   supplierId: string
@@ -179,6 +183,19 @@ export interface SaleItem {
 
 export type SaleStatus = 'completed' | 'held' | 'voided'
 
+export type SalePaymentStatus = 'paid' | 'partial' | 'unpaid'
+
+/** One payment actually received against a sale — for a pay-later sale, each collection. */
+export interface SalePaymentRecord {
+  id: string
+  method: PaymentMethod
+  amount: number
+  reference?: string
+  date: string
+  createdAt?: string
+  receivedBy?: string
+}
+
 export interface Sale {
   id: string
   invoiceNo: string
@@ -190,16 +207,24 @@ export interface Sale {
   cashierId: string
   cashierName: string
   customerName?: string
+  customerPhone?: string
   priceTier: PriceTier
   items: SaleItem[]
   subtotal: number
   discount: number
   grandTotal: number
-  paymentMethod: PaymentMethod
+  paymentMethod: SalePaymentMethod
   amountReceived: number
   change: number
   status: SaleStatus
   printedAt?: string | null
+  /** A "pay later" sale — stays true after it's been paid off. */
+  isCredit: boolean
+  paymentStatus: SalePaymentStatus
+  /** What the customer still owes on a pay-later sale (0 once settled, or for a normal sale). */
+  balanceDue: number
+  settledAt?: string | null
+  payments: SalePaymentRecord[]
 }
 
 // ===================== Expenses =====================
@@ -224,6 +249,7 @@ export type PermissionKey =
   | 'view_pos'
   | 'create_sale'
   | 'void_sale'
+  | 'manage_receivables'
   | 'view_products'
   | 'manage_products'
   | 'manage_inventory'

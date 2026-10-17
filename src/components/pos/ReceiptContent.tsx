@@ -39,6 +39,12 @@ export function ReceiptContent({ sale, settings }: { sale: Sale; settings: Busin
           <span>Bill To</span>
           <span className="truncate">{sale.customerName || 'Walk-in Customer'}</span>
         </div>
+        {sale.customerPhone && (
+          <div className="flex justify-between">
+            <span>Phone</span>
+            <span>{sale.customerPhone}</span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span>Cashier</span>
           <span>{sale.cashierName}</span>
@@ -105,6 +111,25 @@ export function ReceiptContent({ sale, settings }: { sale: Sale; settings: Busin
           <span>{formatCurrency(sale.grandTotal)}</span>
         </div>
       </div>
+
+      {sale.isCredit && (
+        <div className="border-t border-dashed border-border-strong py-1.5">
+          <div className="flex justify-between">
+            <span>Payment</span>
+            <span>PAY LATER</span>
+          </div>
+          {sale.grandTotal - sale.balanceDue > 0 && (
+            <div className="flex justify-between">
+              <span>Paid</span>
+              <span>{formatCurrency(sale.grandTotal - sale.balanceDue)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-[14px] font-bold">
+            <span>{sale.balanceDue > 0 ? 'BALANCE DUE' : 'PAID IN FULL'}</span>
+            {sale.balanceDue > 0 && <span>{formatCurrency(sale.balanceDue)}</span>}
+          </div>
+        </div>
+      )}
 
       {settings?.receiptFooter && <div className="pt-2 text-center text-[11px] text-ink-faint">{settings.receiptFooter}</div>}
     </div>

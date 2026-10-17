@@ -38,6 +38,7 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
     ['Invoice:', sale.invoiceNo],
     ['Date:', formatDateTime(sale.createdAt)],
     ['Bill To:', sale.customerName || 'Walk-in Customer'],
+    ...(sale.customerPhone ? [['Phone:', sale.customerPhone]] : []),
     ['Cashier:', sale.cashierName],
   ])
   encoder.rule()
@@ -66,6 +67,17 @@ export function buildReceiptEscPos(sale: Sale, settings: BusinessSettings | null
   encoder.table(totalCols, [['RECEIPT TOTAL', formatCurrency(sale.grandTotal)]])
   encoder.bold(false)
   encoder.rule({ style: 'double' })
+
+  if (sale.isCredit) {
+    const paid = sale.grandTotal - sale.balanceDue
+    const creditRows: string[][] = [['Payment', 'PAY LATER']]
+    if (paid > 0) creditRows.push(['Paid', formatCurrency(paid)])
+    encoder.table(totalCols, creditRows)
+    encoder.bold(true)
+    encoder.table(totalCols, [sale.balanceDue > 0 ? ['BALANCE DUE', formatCurrency(sale.balanceDue)] : ['PAID IN FULL', '']])
+    encoder.bold(false)
+    encoder.rule()
+  }
 
   if (settings?.receiptFooter) {
     encoder.newline().align('center').line(settings.receiptFooter)

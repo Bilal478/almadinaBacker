@@ -25,6 +25,7 @@ class SaleResource extends JsonResource
             'cashier_id' => $this->cashier_id,
             'cashier_name' => $this->whenLoaded('cashier', fn () => $this->cashier->name),
             'customer_name' => $this->customer_name,
+            'customer_phone' => $this->customer_phone,
             'price_tier' => $this->price_tier,
             'subtotal' => (float) $this->subtotal,
             'discount' => (float) $this->discount,
@@ -35,7 +36,22 @@ class SaleResource extends JsonResource
             'change' => (float) $this->change_amount,
             'status' => $this->status,
             'printed_at' => $this->printed_at?->toIso8601String(),
-            'payment_method' => $this->whenLoaded('payments', fn () => $this->payments->first()?->payment_method),
+            // A pay-later sale always reports CREDIT here, even once it's been paid — how the
+            // money eventually came in is in `payments`.
+            'payment_method' => $this->is_credit ? 'CREDIT' : $this->whenLoaded('payments', fn () => $this->payments->first()?->payment_method),
+            'is_credit' => (bool) $this->is_credit,
+            'payment_status' => $this->payment_status,
+            'balance_due' => (float) $this->balance_due,
+            'settled_at' => $this->settled_at?->toIso8601String(),
+            'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn ($p) => [
+                'id' => $p->id,
+                'payment_method' => $p->payment_method,
+                'amount' => (float) $p->amount,
+                'reference' => $p->reference,
+                'payment_date' => $p->payment_date->toDateString(),
+                'created_at' => $p->created_at?->toIso8601String(),
+                'received_by' => $p->relationLoaded('receivedBy') ? $p->receivedBy?->name : null,
+            ])),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
                 'product_id' => $item->product_id,

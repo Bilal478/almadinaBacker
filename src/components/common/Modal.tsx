@@ -32,7 +32,7 @@ export function Modal({ open, title, subtitle, onClose, children, width = 'md', 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-navy-900/40 p-4">
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[150] flex items-center justify-center bg-navy-900/40 p-4">
       <div className={clsx('flex max-h-[90vh] w-full flex-col rounded-md border border-border bg-panel shadow-xl', WIDTHS[width])}>
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <div>

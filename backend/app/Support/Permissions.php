@@ -14,6 +14,7 @@ final class Permissions
             'view_pos' => 'View POS',
             'create_sale' => 'Create Sale',
             'void_sale' => 'Void Sale',
+            'manage_receivables' => 'Manage Pay-Later Invoices',
         ],
         'Products & Inventory' => [
             'view_products' => 'View Products',

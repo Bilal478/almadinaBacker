@@ -60,7 +60,8 @@ class ReportService
                     'grand_total' => (float) $sale->grand_total,
                     'returned' => round($saleReturned, 2),
                     'net_total' => round((float) $sale->grand_total - $saleReturned, 2),
-                    'payment_method' => $sale->payments->first()?->payment_method,
+                    'payment_method' => $sale->is_credit ? 'CREDIT' : $sale->payments->first()?->payment_method,
+                    'balance_due' => (float) $sale->balance_due,
                     'status' => $sale->status,
                 ];
             })->values(),
@@ -343,7 +344,12 @@ class ReportService
             $query->where('cashier_id', $filters['seller_id']);
         }
         if (!empty($filters['payment_method'])) {
-            $query->whereHas('payments', fn ($q) => $q->where('payment_method', $filters['payment_method']));
+            if ($filters['payment_method'] === 'CREDIT') {
+                $query->where('is_credit', true);
+            } else {
+                $query->where('is_credit', false)
+                    ->whereHas('payments', fn ($q) => $q->where('payment_method', $filters['payment_method']));
+            }
         }
         if (!empty($filters['product_id'])) {
             $query->whereHas('items', fn ($q) => $q->where('product_id', $filters['product_id']));

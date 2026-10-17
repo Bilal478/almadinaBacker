@@ -27,7 +27,9 @@ return [
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    // Lets the browser reuse its CORS pre-check for 2 hours instead of sending an extra
+    // OPTIONS request before every single sale/API call.
+    'max_age' => 7200,
 
     'supports_credentials' => false,
 

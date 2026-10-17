@@ -5,7 +5,7 @@ import { SearchBar } from '@/components/common/SearchBar'
 import { useProductStore } from '@/store/productStore'
 import { useSupplierStore } from '@/store/supplierStore'
 import { useUserStore } from '@/store/userStore'
-import type { PaymentMethod } from '@/types'
+import type { SalePaymentMethod } from '@/types'
 
 export interface ReportFilters {
   from: string
@@ -23,7 +23,7 @@ interface ReportFilterBarProps {
   show?: { invoiceNo?: boolean; product?: boolean; seller?: boolean; supplier?: boolean; paymentMethod?: boolean }
 }
 
-const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'bank_transfer', 'other']
+const PAYMENT_METHODS: SalePaymentMethod[] = ['cash', 'card', 'bank_transfer', 'other', 'credit']
 
 export function ReportFilterBar({ filters, onChange, show = {} }: ReportFilterBarProps) {
   const products = useProductStore((s) => s.products)
@@ -82,7 +82,7 @@ export function ReportFilterBar({ filters, onChange, show = {} }: ReportFilterBa
             <option value="All">All Methods</option>
             {PAYMENT_METHODS.map((m) => (
               <option key={m} value={m}>
-                {m.replace('_', ' ')}
+                {m === 'credit' ? 'pay later' : m.replace('_', ' ')}
               </option>
             ))}
           </select>

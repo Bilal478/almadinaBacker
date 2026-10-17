@@ -9,6 +9,8 @@ import { useProductStore } from '@/store/productStore'
 import { useInventoryStore } from '@/store/inventoryStore'
 import { useCurrentUser } from '@/store/authStore'
 import { useUiStore } from '@/store/uiStore'
+import { usePrinterSettingsStore } from '@/store/printerSettingsStore'
+import { warmUpQz } from '@/lib/qzTray'
 import { nextInvoiceNo } from '@/lib/id'
 import { ApiError } from '@/lib/api'
 import type { Sale } from '@/types'
@@ -26,6 +28,7 @@ export function PosPage() {
 
   const items = useCartStore((s) => s.items)
   const customerName = useCartStore((s) => s.customerName)
+  const customerPhone = useCartStore((s) => s.customerPhone)
   const priceTier = useCartStore((s) => s.priceTier)
   const paymentMethod = useCartStore((s) => s.paymentMethod)
   const amountReceived = useCartStore((s) => s.amountReceived)
@@ -41,6 +44,7 @@ export function PosPage() {
   const fetchInventory = useInventoryStore((s) => s.fetchAll)
   const { user } = useCurrentUser()
   const pushToast = useUiStore((s) => s.pushToast)
+  const autoPrint = usePrinterSettingsStore((s) => s.autoPrint)
 
   // Stock and prices must be current the moment a cashier opens the till — stale numbers
   // here mean overselling something that's actually out, or charging an old price.
@@ -55,12 +59,22 @@ export function PosPage() {
       pushToast('warning', 'Cart is empty.')
       return
     }
-    const received = Number(amountReceived) || grandTotal
+    const isCredit = paymentMethod === 'credit'
+    if (isCredit && !customerName.trim()) {
+      pushToast('error', 'Enter the customer name for a Pay Later sale.')
+      customerRef.current?.focus()
+      return
+    }
+    const received = isCredit ? 0 : Number(amountReceived) || grandTotal
     if (paymentMethod === 'cash' && received < grandTotal) {
       pushToast('error', 'Amount received is less than the grand total.')
       return
     }
     setSubmittingSale(true)
+    // Make sure the QZ Tray connection is up while the sale is still saving, so the receipt
+    // can go to the printer the instant the server replies (reconnecting takes seconds).
+    const { enabled, printerName } = usePrinterSettingsStore.getState()
+    if (enabled && printerName) warmUpQz()
     try {
       const sale = await completeSaleAction({
         items,
@@ -70,7 +84,8 @@ export function PosPage() {
         counter: user?.counter ?? 'Counter 1',
         cashierId: user?.id ?? 'unknown',
         cashierName: user?.name ?? 'Unknown',
-        customerName: customerName || undefined,
+        customerName: customerName.trim() || undefined,
+        customerPhone: isCredit ? customerPhone.trim() || undefined : undefined,
         priceTier,
         paymentMethod,
         amountReceived: received,
@@ -79,7 +94,10 @@ export function PosPage() {
       clearCart()
       setSelectedProductId(null)
       setDraftInvoice(nextInvoiceNo())
-      pushToast('success', `Sale ${sale.invoiceNo} completed.`)
+      pushToast(
+        'success',
+        sale.isCredit ? `Sale ${sale.invoiceNo} saved as unpaid for ${sale.customerName}.` : `Sale ${sale.invoiceNo} completed.`,
+      )
     } catch (e) {
       pushToast('error', e instanceof ApiError ? e.message : 'Failed to complete sale.')
     } finally {
@@ -148,7 +166,7 @@ export function PosPage() {
       />
 
       <HeldSalesModal open={heldSalesOpen} onClose={() => setHeldSalesOpen(false)} />
-      <ReceiptModal sale={completedSale} onClose={() => setCompletedSale(null)} />
+      <ReceiptModal sale={completedSale} onClose={() => setCompletedSale(null)} autoPrint={autoPrint} />
     </div>
   )
 }
