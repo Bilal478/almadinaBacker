@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Modal } from '@/components/common/Modal'
 import { Button } from '@/components/common/Button'
@@ -12,24 +12,13 @@ import { usePrinterSettingsStore } from '@/store/printerSettingsStore'
 import { useUiStore } from '@/store/uiStore'
 import { Printer, CheckCircle2 } from 'lucide-react'
 
-export function ReceiptModal({
-  sale,
-  onClose,
-  autoPrint,
-}: {
-  sale: Sale | null
-  onClose: () => void
-  /** Start printing as soon as the receipt opens — only for a sale just rung up, never a reprint. */
-  autoPrint?: boolean
-}) {
+export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: () => void }) {
   const settings = useSettingsStore((s) => s.settings)
   const markPrinted = useSalesStore((s) => s.markPrinted)
   const pushToast = useUiStore((s) => s.pushToast)
   const [justPrinted, setJustPrinted] = useState(false)
+  // Blocks a double click on Print from sending two copies to the printer.
   const [printing, setPrinting] = useState(false)
-  // Which sale was already auto-printed — React StrictMode runs effects twice in development,
-  // and re-renders must never send a second copy to the printer.
-  const autoPrintedId = useRef<string | null>(null)
 
   // The browser gives no "print actually succeeded" signal — `afterprint` fires whether the
   // user hit Print or Cancel in the dialog. It's the closest available signal, and good
@@ -73,13 +62,6 @@ export function ReceiptModal({
       setPrinting(false)
     }
   }
-
-  useEffect(() => {
-    if (!autoPrint || !sale || sale.printedAt || autoPrintedId.current === sale.id) return
-    autoPrintedId.current = sale.id
-    handlePrint()
-    // Keyed on the sale id only: once per newly completed sale, not on every re-render.
-  }, [autoPrint, sale?.id])
 
   return (
     <>

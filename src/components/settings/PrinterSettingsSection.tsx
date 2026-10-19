@@ -13,7 +13,7 @@ const selectClass =
  * it saves itself immediately on every change rather than waiting for "Save Settings".
  */
 export function PrinterSettingsSection() {
-  const { enabled, printerName, paperWidth, charsPerLine, autoPrint, update } = usePrinterSettingsStore()
+  const { enabled, printerName, paperWidth, charsPerLine, update } = usePrinterSettingsStore()
   const pushToast = useUiStore((s) => s.pushToast)
   const [printers, setPrinters] = useState<string[]>([])
   const [detecting, setDetecting] = useState(false)
@@ -52,11 +52,6 @@ export function PrinterSettingsSection() {
           running on this till. This setting only applies to this device, not your whole business.
         </div>
       </div>
-
-      <label className="mb-3 flex items-center gap-2 text-sm text-ink-soft">
-        <input type="checkbox" checked={autoPrint} onChange={(e) => update({ autoPrint: e.target.checked })} />
-        Print the receipt automatically as soon as a sale is completed
-      </label>
 
       <label className="mb-3 flex items-center gap-2 text-sm text-ink-soft">
         <input type="checkbox" checked={enabled} onChange={(e) => update({ enabled: e.target.checked })} />

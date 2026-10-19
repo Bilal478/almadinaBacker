@@ -20,11 +20,9 @@ export interface PrinterSettings {
    *  paper width (see defaultCharsPerLine). Needed because 80mm printers genuinely differ — some
    *  fit 48, many only 42 — and sending more than the printer fits makes it wrap every row. */
   charsPerLine: number | null
-  /** Print the receipt the moment a sale is saved, instead of waiting for a Print click. */
-  autoPrint: boolean
 }
 
-const DEFAULT_SETTINGS: PrinterSettings = { enabled: false, printerName: null, paperWidth: '80mm', charsPerLine: null, autoPrint: true }
+const DEFAULT_SETTINGS: PrinterSettings = { enabled: false, printerName: null, paperWidth: '80mm', charsPerLine: null }
 
 export function defaultCharsPerLine(paperWidth: PaperWidth): number {
   return paperWidth === '80mm' ? 42 : 32
@@ -59,8 +57,8 @@ interface PrinterSettingsState extends PrinterSettings {
 export const usePrinterSettingsStore = create<PrinterSettingsState>((set, get) => ({
   ...load(),
   update: (patch) => {
-    const { enabled, printerName, paperWidth, charsPerLine, autoPrint } = { ...get(), ...patch }
-    persist({ enabled, printerName, paperWidth, charsPerLine, autoPrint })
+    const { enabled, printerName, paperWidth, charsPerLine } = { ...get(), ...patch }
+    persist({ enabled, printerName, paperWidth, charsPerLine })
     set(patch)
   },
 }))

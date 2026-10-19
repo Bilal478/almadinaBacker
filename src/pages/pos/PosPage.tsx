@@ -44,7 +44,6 @@ export function PosPage() {
   const fetchInventory = useInventoryStore((s) => s.fetchAll)
   const { user } = useCurrentUser()
   const pushToast = useUiStore((s) => s.pushToast)
-  const autoPrint = usePrinterSettingsStore((s) => s.autoPrint)
 
   // Stock and prices must be current the moment a cashier opens the till — stale numbers
   // here mean overselling something that's actually out, or charging an old price.
@@ -71,8 +70,8 @@ export function PosPage() {
       return
     }
     setSubmittingSale(true)
-    // Make sure the QZ Tray connection is up while the sale is still saving, so the receipt
-    // can go to the printer the instant the server replies (reconnecting takes seconds).
+    // Make sure the QZ Tray connection is up while the sale is still saving, so clicking Print
+    // on the receipt doesn't first have to wait for a reconnect (that takes seconds).
     const { enabled, printerName } = usePrinterSettingsStore.getState()
     if (enabled && printerName) warmUpQz()
     try {
@@ -166,7 +165,7 @@ export function PosPage() {
       />
 
       <HeldSalesModal open={heldSalesOpen} onClose={() => setHeldSalesOpen(false)} />
-      <ReceiptModal sale={completedSale} onClose={() => setCompletedSale(null)} autoPrint={autoPrint} />
+      <ReceiptModal sale={completedSale} onClose={() => setCompletedSale(null)} />
     </div>
   )
 }
