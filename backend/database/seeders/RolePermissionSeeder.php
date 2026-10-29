@@ -28,7 +28,7 @@ class RolePermissionSeeder extends Seeder
             ['description' => 'Runs day-to-day operations: inventory, purchasing, suppliers and reporting.', 'is_system' => false],
         );
         $manager->permissions()->sync(Permission::whereIn('key', [
-            'view_pos', 'create_sale', 'void_sale',
+            'view_pos', 'create_sale', 'void_sale', 'manage_receivables',
             'view_products', 'manage_products', 'manage_inventory', 'view_purchase_cost',
             'manage_suppliers', 'manage_purchases', 'manage_supplier_payments', 'view_supplier_balances',
             'manage_expenses', 'view_reports', 'export_reports',
@@ -53,6 +53,7 @@ class RolePermissionSeeder extends Seeder
             ['description' => 'Owns supplier payments, expenses and financial reporting.', 'is_system' => false],
         )->permissions()->sync(Permission::whereIn('key', [
             'manage_supplier_payments', 'view_supplier_balances', 'manage_expenses', 'view_reports', 'export_reports',
+            'manage_receivables',
         ])->pluck('id'));
     }
 }

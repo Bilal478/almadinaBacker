@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { CartItem, PaymentMethod, PriceTier, Product } from '@/types'
+import type { CartItem, PriceTier, Product, SalePaymentMethod } from '@/types'
 import { useProductStore } from '@/store/productStore'
 import { nextId } from '@/lib/id'
 
@@ -8,6 +8,7 @@ export interface HeldSale {
   heldAt: string
   items: CartItem[]
   customerName?: string
+  customerPhone?: string
   priceTier: PriceTier
   orderDiscount: string
 }
@@ -15,8 +16,10 @@ export interface HeldSale {
 interface CartState {
   items: CartItem[]
   customerName: string
+  /** Only asked for on a pay-later sale, so the customer can be reached about the balance. */
+  customerPhone: string
   priceTier: PriceTier
-  paymentMethod: PaymentMethod
+  paymentMethod: SalePaymentMethod
   amountReceived: string
   /** A whole-bill discount, on top of (not derived from) each line's own discount — kept as
    *  raw text like amountReceived so the field can be edited freely mid-typing. */
@@ -33,8 +36,9 @@ interface CartState {
   removeLast: () => void
 
   setCustomerName: (name: string) => void
+  setCustomerPhone: (phone: string) => void
   setPriceTier: (tier: PriceTier) => void
-  setPaymentMethod: (method: PaymentMethod) => void
+  setPaymentMethod: (method: SalePaymentMethod) => void
   setAmountReceived: (value: string) => void
 
   holdSale: () => void
@@ -55,6 +59,7 @@ function priceFor(product: Product, tier: PriceTier): number {
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   customerName: '',
+  customerPhone: '',
   priceTier: 'customer',
   paymentMethod: 'cash',
   amountReceived: '',
@@ -125,6 +130,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   setCustomerName: (name) => set({ customerName: name }),
+  setCustomerPhone: (phone) => set({ customerPhone: phone }),
   setPriceTier: (tier) => {
     set((state) => ({
       priceTier: tier,
@@ -138,17 +144,25 @@ export const useCartStore = create<CartState>((set, get) => ({
   setAmountReceived: (value) => set({ amountReceived: value }),
 
   holdSale: () => {
-    const { items, customerName, priceTier, orderDiscount } = get()
+    const { items, customerName, customerPhone, priceTier, orderDiscount } = get()
     if (items.length === 0) return
     const held: HeldSale = {
       id: nextId('hold'),
       heldAt: new Date().toISOString(),
       items,
       customerName: customerName || undefined,
+      customerPhone: customerPhone || undefined,
       priceTier,
       orderDiscount,
     }
-    set((state) => ({ heldSales: [held, ...state.heldSales], items: [], customerName: '', amountReceived: '', orderDiscount: '' }))
+    set((state) => ({
+      heldSales: [held, ...state.heldSales],
+      items: [],
+      customerName: '',
+      customerPhone: '',
+      amountReceived: '',
+      orderDiscount: '',
+    }))
   },
 
   resumeHeldSale: (id) => {
@@ -157,6 +171,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set((state) => ({
       items: held.items,
       customerName: held.customerName ?? '',
+      customerPhone: held.customerPhone ?? '',
       priceTier: held.priceTier,
       orderDiscount: held.orderDiscount,
       heldSales: state.heldSales.filter((h) => h.id !== id),
@@ -167,7 +182,17 @@ export const useCartStore = create<CartState>((set, get) => ({
     set((state) => ({ heldSales: state.heldSales.filter((h) => h.id !== id) }))
   },
 
-  clearCart: () => set({ items: [], customerName: '', amountReceived: '', orderDiscount: '' }),
+  // "Pay Later" never carries over to the next sale — left selected, it would silently put the
+  // next customer's bill on credit. Cash/card stay as they were.
+  clearCart: () =>
+    set((state) => ({
+      items: [],
+      customerName: '',
+      customerPhone: '',
+      paymentMethod: state.paymentMethod === 'credit' ? 'cash' : state.paymentMethod,
+      amountReceived: '',
+      orderDiscount: '',
+    })),
 
   subtotal: () => get().items.reduce((s, i) => s + i.qty * i.unitPrice, 0),
   totalDiscount: () => get().items.reduce((s, i) => s + i.discount, 0),

@@ -17,6 +17,8 @@ export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: ()
   const markPrinted = useSalesStore((s) => s.markPrinted)
   const pushToast = useUiStore((s) => s.pushToast)
   const [justPrinted, setJustPrinted] = useState(false)
+  // Blocks a double click on Print from sending two copies to the printer.
+  const [printing, setPrinting] = useState(false)
 
   // The browser gives no "print actually succeeded" signal — `afterprint` fires whether the
   // user hit Print or Cancel in the dialog. It's the closest available signal, and good
@@ -43,16 +45,21 @@ export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: ()
   const printed = justPrinted || !!sale?.printedAt
 
   async function handlePrint() {
-    if (!sale) return
-    const result = await printReceipt(sale, settings)
-    if (result.fallbackReason) {
-      pushToast('warning', `Direct printing failed (${result.fallbackReason}) — opened the regular print dialog instead.`)
-    }
-    // 'browser' still relies on the `afterprint` listener above — window.print()'s dialog is
-    // still open/pending at this point, so there's nothing to confirm yet.
-    if (result.method === 'direct') {
-      setJustPrinted(true)
-      markPrinted(sale.id).catch(() => {})
+    if (!sale || printing) return
+    setPrinting(true)
+    try {
+      const result = await printReceipt(sale, settings)
+      if (result.fallbackReason) {
+        pushToast('warning', `Direct printing failed (${result.fallbackReason}) — opened the regular print dialog instead.`)
+      }
+      // 'browser' still relies on the `afterprint` listener above — window.print()'s dialog is
+      // still open/pending at this point, so there's nothing to confirm yet.
+      if (result.method === 'direct') {
+        setJustPrinted(true)
+        markPrinted(sale.id).catch(() => {})
+      }
+    } finally {
+      setPrinting(false)
     }
   }
 
@@ -66,12 +73,16 @@ export function ReceiptModal({ sale, onClose }: { sale: Sale | null; onClose: ()
         width="sm"
         footer={
           <>
-            {printed && (
-              <span className="mr-auto flex items-center gap-1 text-[12px] font-medium text-success">
-                <CheckCircle2 size={14} /> Printed
-              </span>
+            {printing ? (
+              <span className="mr-auto text-[12px] font-medium text-ink-faint">Printing…</span>
+            ) : (
+              printed && (
+                <span className="mr-auto flex items-center gap-1 text-[12px] font-medium text-success">
+                  <CheckCircle2 size={14} /> Printed
+                </span>
+              )
             )}
-            <Button variant="secondary" onClick={handlePrint}>
+            <Button variant="secondary" onClick={handlePrint} disabled={printing}>
               <Printer size={14} /> {printed ? 'Print Again' : 'Print'}
             </Button>
             <Button variant="primary" onClick={onClose}>

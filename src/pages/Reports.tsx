@@ -315,7 +315,7 @@ export function ReportsPage() {
                 sortValue: (r) => r.grandTotal - saleReturnedAmount(r),
                 render: (r) => <span className="font-bold text-ink">{formatCurrency(r.grandTotal - saleReturnedAmount(r))}</span>,
               },
-              { key: 'method', header: 'Payment', sortValue: (r) => r.paymentMethod, render: (r) => <span className="capitalize">{r.paymentMethod.replace('_', ' ')}</span> },
+              { key: 'method', header: 'Payment', sortValue: (r) => r.paymentMethod, render: (r) => <span className="capitalize">{r.paymentMethod === 'credit' ? 'pay later' : r.paymentMethod.replace('_', ' ')}</span> },
               {
                 key: 'printed',
                 header: 'Printed',

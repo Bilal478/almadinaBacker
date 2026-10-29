@@ -1,4 +1,5 @@
-import { forwardRef, useMemo, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Search, ScanLine } from 'lucide-react'
 import clsx from 'clsx'
 import { useProductStore } from '@/store/productStore'
@@ -6,8 +7,19 @@ import { useCartStore } from '@/store/cartStore'
 import { useUiStore } from '@/store/uiStore'
 import { ProductResultRow } from '@/components/pos/ProductResultRow'
 
+/** True when a keystroke on this element is meant for it (typing into a field), so the
+ *  scanner redirect below must leave it alone. */
+function isTextEntry(el: Element | null): boolean {
+  if (!el) return false
+  if (el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return true
+  if (el instanceof HTMLInputElement) return !['button', 'submit', 'reset', 'checkbox', 'radio'].includes(el.type)
+  return (el as HTMLElement).isContentEditable
+}
+
 export const ProductSearchPanel = forwardRef<HTMLInputElement, object>(function ProductSearchPanel(_props, ref) {
   const [query, setQuery] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  useImperativeHandle(ref, () => inputRef.current as HTMLInputElement)
   const [category, setCategory] = useState<string>('All')
   const products = useProductStore((s) => s.products)
   const addProduct = useCartStore((s) => s.addProduct)
@@ -25,6 +37,33 @@ export const ProductSearchPanel = forwardRef<HTMLInputElement, object>(function 
       return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.barcode.includes(q)
     })
   }, [active, category, query])
+
+  // A barcode/QR scanner is just a keyboard: it types into whatever has focus. Once the cashier
+  // clicks a product row or a payment button, focus leaves the search box and a scan would
+  // otherwise go nowhere. So any printable key that isn't aimed at a text field pulls focus
+  // back here — the first character is inserted by hand (it was already dispatched to the old
+  // element), the rest of the scan and its closing Enter then arrive natively.
+  // Skipped while a dialog is open, so a scan never adds to the cart hidden behind a modal.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return
+      const input = inputRef.current
+      const activeEl = document.activeElement
+      if (!input || activeEl === input || isTextEntry(activeEl)) return
+      if (document.querySelector('[aria-modal="true"]')) return
+      // Space on a focused button is a click, not the start of a scan.
+      if (e.key === ' ' && activeEl instanceof HTMLButtonElement) return
+
+      e.preventDefault()
+      input.focus()
+      // Starts a fresh query rather than appending to leftover text, which would turn the
+      // scanned code into a search that matches nothing. flushSync so the input already holds
+      // this character before the scanner's next keystroke lands a few ms later.
+      flushSync(() => setQuery(e.key))
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== 'Enter') return
@@ -58,7 +97,7 @@ export const ProductSearchPanel = forwardRef<HTMLInputElement, object>(function 
         <div className="relative flex-1">
           <Search size={16} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-faint" />
           <input
-            ref={ref}
+            ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}

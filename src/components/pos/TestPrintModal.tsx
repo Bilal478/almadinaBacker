@@ -38,6 +38,10 @@ function buildTestSale(cashierName: string): Sale {
     change: 70,
     status: 'completed',
     printedAt: null,
+    isCredit: false,
+    paymentStatus: 'paid',
+    balanceDue: 0,
+    payments: [],
   }
 }
 

@@ -10,6 +10,7 @@ import { warmUpQz } from '@/lib/qzTray'
 import { LoginPage } from '@/pages/Login'
 import { DashboardPage } from '@/pages/Dashboard'
 import { PosPage } from '@/pages/pos/PosPage'
+import { ReceivablesPage } from '@/pages/Receivables'
 import { ProductsPage } from '@/pages/Products'
 import { BarcodeLabelsPage } from '@/pages/BarcodeLabels'
 import { CategoriesPage } from '@/pages/Categories'
@@ -56,6 +57,14 @@ export default function App() {
               element={
                 <RequirePermission permission="view_pos">
                   <PosPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/pay-later"
+              element={
+                <RequirePermission permission="manage_receivables">
+                  <ReceivablesPage />
                 </RequirePermission>
               }
             />

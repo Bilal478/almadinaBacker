@@ -42,7 +42,8 @@ class SaleService
                 'sale_date' => $saleDate,
                 'counter' => $data['counter'] ?? Auth::user()?->counter,
                 'cashier_id' => $cashierId,
-                'customer_name' => $data['customer_name'] ?? null,
+                'customer_name' => isset($data['customer_name']) ? trim($data['customer_name']) : null,
+                'customer_phone' => $data['customer_phone'] ?? null,
                 'price_tier' => $priceTier,
                 'subtotal' => 0,
                 'discount' => 0,
@@ -102,12 +103,19 @@ class SaleService
             $grandTotal = round($subtotal - $discount, 2);
 
             $paymentMethod = $data['payment_method'] ?? 'CASH';
-            $amountReceived = (float) ($data['amount_received'] ?? $grandTotal);
+            $isCredit = $paymentMethod === 'CREDIT';
+            if ($isCredit && blank($data['customer_name'] ?? null)) {
+                throw new BusinessException('Enter the customer name for a pay-later sale.', 'VALIDATION_ERROR');
+            }
+
+            // Pay later: nothing changes hands now, so no payment row — the whole total is
+            // owed until it's received via SaleCreditService::receivePayment().
+            $amountReceived = $isCredit ? 0.0 : (float) ($data['amount_received'] ?? $grandTotal);
             if ($paymentMethod === 'CASH' && $amountReceived < $grandTotal) {
                 throw new BusinessException('Amount received is less than the grand total.', 'INVALID_PAYMENT');
             }
 
-            $sale->update([
+            $sale->fill([
                 'subtotal' => round($subtotal, 2),
                 'discount' => round($discount, 2),
                 'grand_total' => $grandTotal,
@@ -115,15 +123,24 @@ class SaleService
                 'gross_profit' => round($grandTotal - $totalCost, 2),
                 'amount_received' => $amountReceived,
                 'change_amount' => max(0, round($amountReceived - $grandTotal, 2)),
+                'is_credit' => $isCredit,
+                'balance_due' => $isCredit ? $grandTotal : 0,
             ]);
+            if ($isCredit) {
+                $sale->syncPaymentStatus();
+            }
+            $sale->save();
 
-            SalePayment::create([
-                'sale_id' => $sale->id,
-                'payment_method' => $paymentMethod,
-                'amount' => $grandTotal,
-                'reference' => $data['payment_reference'] ?? null,
-                'payment_date' => $sale->sale_date,
-            ]);
+            if (!$isCredit) {
+                SalePayment::create([
+                    'sale_id' => $sale->id,
+                    'payment_method' => $paymentMethod,
+                    'amount' => $grandTotal,
+                    'reference' => $data['payment_reference'] ?? null,
+                    'payment_date' => $sale->sale_date,
+                    'created_by' => Auth::id(),
+                ]);
+            }
 
             AuditLogger::log('created', 'sales', 'sale', $sale->id, null, $sale->fresh()->toArray());
 

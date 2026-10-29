@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { CartItem, PaymentMethod, PriceTier, Sale, SaleItem, SaleStatus } from '@/types'
+import type { CartItem, PaymentMethod, PriceTier, Sale, SaleItem, SalePaymentMethod, SalePaymentRecord, SalePaymentStatus, SaleStatus } from '@/types'
 import { api, getAll } from '@/lib/api'
 import { useProductStore } from '@/store/productStore'
 import { useInventoryStore } from '@/store/inventoryStore'
@@ -18,6 +18,16 @@ interface ApiSaleItem {
   returned_quantity: string | number
 }
 
+interface ApiSalePayment {
+  id: number
+  payment_method: string
+  amount: string | number
+  reference: string | null
+  payment_date: string
+  created_at?: string | null
+  received_by?: string | null
+}
+
 interface ApiSale {
   id: number
   invoice_no: string
@@ -27,6 +37,7 @@ interface ApiSale {
   cashier_id: number
   cashier_name?: string
   customer_name: string | null
+  customer_phone?: string | null
   price_tier: PriceTier
   subtotal: string | number
   discount: string | number
@@ -38,6 +49,11 @@ interface ApiSale {
   status: SaleStatus
   printed_at?: string | null
   payment_method?: string | null
+  is_credit?: boolean
+  payment_status?: SalePaymentStatus
+  balance_due?: string | number
+  settled_at?: string | null
+  payments?: ApiSalePayment[]
   items?: ApiSaleItem[]
 }
 
@@ -58,7 +74,19 @@ function toSaleItem(i: ApiSaleItem): SaleItem {
   }
 }
 
-function toSale(s: ApiSale): Sale {
+function toPaymentRecord(p: ApiSalePayment): SalePaymentRecord {
+  return {
+    id: String(p.id),
+    method: p.payment_method.toLowerCase() as PaymentMethod,
+    amount: Number(p.amount),
+    reference: p.reference ?? undefined,
+    date: p.payment_date,
+    createdAt: p.created_at ?? undefined,
+    receivedBy: p.received_by ?? undefined,
+  }
+}
+
+export function toSale(s: ApiSale): Sale {
   return {
     id: String(s.id),
     invoiceNo: s.invoice_no,
@@ -68,24 +96,40 @@ function toSale(s: ApiSale): Sale {
     cashierId: String(s.cashier_id),
     cashierName: s.cashier_name ?? '',
     customerName: s.customer_name ?? undefined,
+    customerPhone: s.customer_phone ?? undefined,
     priceTier: s.price_tier,
     items: (s.items ?? []).map(toSaleItem),
     subtotal: Number(s.subtotal),
     discount: Number(s.discount),
     grandTotal: Number(s.grand_total),
-    paymentMethod: (s.payment_method?.toLowerCase() ?? 'cash') as PaymentMethod,
+    paymentMethod: (s.payment_method?.toLowerCase() ?? 'cash') as SalePaymentMethod,
     amountReceived: Number(s.amount_received),
     change: Number(s.change),
     status: s.status,
     printedAt: s.printed_at ?? null,
+    isCredit: !!s.is_credit,
+    paymentStatus: s.payment_status ?? 'paid',
+    balanceDue: Number(s.balance_due ?? 0),
+    settledAt: s.settled_at ?? null,
+    payments: (s.payments ?? []).map(toPaymentRecord),
   }
 }
+
+export type CreditSaleFilter = 'outstanding' | 'settled' | 'all'
 
 interface SalesState {
   sales: Sale[]
   loading: boolean
+  /** Pay-later invoices, as last fetched for the Pay Later page. */
+  creditSales: Sale[]
+  creditLoading: boolean
 
   fetchAll: () => Promise<void>
+  fetchCreditSales: (status: CreditSaleFilter) => Promise<void>
+  receivePayment: (
+    saleId: string,
+    input: { amount: number; method: PaymentMethod; reference?: string; date?: string },
+  ) => Promise<Sale>
 
   completeSale: (input: {
     items: CartItem[]
@@ -96,8 +140,9 @@ interface SalesState {
     cashierId: string
     cashierName: string
     customerName?: string
+    customerPhone?: string
     priceTier: PriceTier
-    paymentMethod: PaymentMethod
+    paymentMethod: SalePaymentMethod
     amountReceived: number
   }) => Promise<Sale>
   voidSale: (id: string) => Promise<void>
@@ -111,11 +156,39 @@ interface SalesState {
 export const useSalesStore = create<SalesState>((set) => ({
   sales: [],
   loading: false,
+  creditSales: [],
+  creditLoading: false,
 
   fetchAll: async () => {
     set({ loading: true })
     const sales = await getAll<ApiSale>('/sales')
     set({ sales: sales.map(toSale), loading: false })
+  },
+
+  fetchCreditSales: async (status) => {
+    set({ creditLoading: true })
+    try {
+      const sales = await getAll<ApiSale>(`/credit-sales?status=${status}`)
+      set({ creditSales: sales.map(toSale) })
+    } finally {
+      set({ creditLoading: false })
+    }
+  },
+
+  receivePayment: async (saleId, input) => {
+    const sale = toSale(
+      await api.post<ApiSale>(`/sales/${saleId}/payments`, {
+        amount: input.amount,
+        payment_method: input.method.toUpperCase(),
+        reference: input.reference || undefined,
+        payment_date: input.date,
+      }),
+    )
+    set((state) => ({
+      sales: state.sales.map((s) => (s.id === saleId ? sale : s)),
+      creditSales: state.creditSales.map((s) => (s.id === saleId ? sale : s)),
+    }))
+    return sale
   },
 
   completeSale: async (input) => {
@@ -133,6 +206,7 @@ export const useSalesStore = create<SalesState>((set) => ({
         // discounted sale's total, since the backend already counts line discounts on its own).
         discount: input.discount,
         customer_name: input.customerName,
+        customer_phone: input.customerPhone,
         payment_method: input.paymentMethod.toUpperCase(),
         amount_received: input.amountReceived,
       }),
